@@ -239,20 +239,26 @@ a:hover { text-decoration: underline; }
 [data-theme="dark"] .nav-scroll { background: rgba(11, 15, 25, .88); backdrop-filter: blur(16px); }
 [data-theme="light"] .nav-scroll { background: rgba(250, 250, 249, .86); backdrop-filter: saturate(180%) blur(18px); }
 .nav-in {
-  max-width: var(--maxw); margin: 0 auto; padding: 0 12px;
-  display: flex; flex-wrap: nowrap; gap: 2px; overflow-x: clip;
+  width: 100%; max-width: none; margin: 0 auto; padding: 8px 10px;
+  display: flex; flex-wrap: nowrap; gap: 7px; overflow-x: clip;
 }
 .nav-in::-webkit-scrollbar { display: none; }
-.nav a {
-  flex: 1 1 0; min-width: 0; margin: 5px 1px; padding: 7px 2px; min-height: 34px;
+/* 注意：nav 元素的 class 是 nav-wrap，选择器必须用 .nav-in a（.nav a 永远匹配不到） */
+.nav-in a {
+  flex: 1 1 0; min-width: 0;
   display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 9px 2px; min-height: 38px;
   font-size: 13px; color: var(--text-2);
-  border-radius: 9px; white-space: nowrap;
-  transition: color .16s, background .16s, transform .1s;
+  background: var(--idle-soft); border: 1px solid var(--border);
+  border-radius: 10px; white-space: nowrap;
+  transition: color .16s, background .16s, border-color .16s, transform .1s, box-shadow .16s;
 }
-.nav a:hover { color: var(--text); text-decoration: none; background: var(--idle-soft); }
-.nav a:active { transform: scale(.95); }
-.nav a.on { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.nav-in a:hover { color: var(--text); text-decoration: none; background: var(--card); border-color: var(--border-hi); }
+.nav-in a:active { transform: scale(.94); }
+.nav-in a.on {
+  color: var(--accent); background: var(--accent-soft); border-color: var(--accent);
+  font-weight: 600; box-shadow: 0 1px 4px var(--ring);
+}
 .nav-fade {
   position: absolute; right: 0; top: 0; bottom: 0; width: 46px;
   pointer-events: none; display: none;
@@ -266,7 +272,7 @@ a:hover { text-decoration: underline; }
 }
 
 /* ============ Section ============ */
-section { margin-top: var(--sp-4); scroll-margin-top: 58px; }
+section { margin-top: var(--sp-4); scroll-margin-top: 68px; }
 .sec-hd {
   display: flex; align-items: center; gap: 10px;
   margin-bottom: var(--sp-2); flex-wrap: wrap;
@@ -325,7 +331,8 @@ section { margin-top: var(--sp-4); scroll-margin-top: 58px; }
   .g2, .g4, .g6 { grid-template-columns: repeat(2, 1fr); }
   .wrap { padding: 0 14px 60px; }
   .hdr { padding: 32px 0 28px; }
-  .hdr-in, .nav-in { padding: 0 14px; }
+  .hdr-in { padding: 0 14px; }
+  .nav-in { padding: 6px 8px; gap: 5px; }
   .card { padding: 16px; }
   .hdr h1 { font-size: 20px; }
   .hdr .sub { font-size: 12.5px; margin-top: 8px; }
