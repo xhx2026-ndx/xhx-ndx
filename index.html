@@ -201,17 +201,20 @@ try {
 <script src="data/market.js"></script>
 <script src="data/macro.js"></script>
 <script src="data/events.js"></script>
-<!-- 3D 地球依赖：优先本地文件（离线可用），缺失时回退 CDN，再缺失则降级为 2D 地图 -->
-<script src="assets/vendor/three.min.js"></script>
+<!-- 3D 地球依赖：本地 three.min.js 异步加载（不阻塞首屏）；缺失时 3 秒后非阻塞回退 CDN；都失败则自动降级 2D 地图 -->
+<script src="assets/vendor/three.min.js" async></script>
 <script>
-if (!window.THREE) {
-  var _s = document.createElement('script');
-  _s.src = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
-  _s.async = false;
-  document.head.appendChild(_s);
-}
+  /* 本地 three 没加载成功时，3 秒后非阻塞回退到 CDN（避免阻塞与重复下载） */
+  setTimeout(function () {
+    if (typeof window.THREE === 'undefined') {
+      var _s = document.createElement('script');
+      _s.src = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+      _s.async = true;
+      document.head.appendChild(_s);
+    }
+  }, 3000);
 </script>
-<script src="assets/globe.js"></script>
-<script src="assets/app.js"></script>
+<script src="assets/globe.js" defer></script>
+<script src="assets/app.js" defer></script>
 </body>
 </html>

@@ -1198,6 +1198,7 @@
      ============================================================ */
   var followOnly = false;
   var globe = null;
+  var globeInitPending = false;
 
   var TYPE_LABEL = { conflict: '冲突', talk: '会谈', policy: '政策', macro: '宏观' };
   var TYPE_HEX = { conflict: '#E08A8A', talk: '#8FB4D8', policy: '#BBA9D4', macro: '#DCA96B' };
@@ -1228,18 +1229,36 @@
       el.addEventListener('click', function () { showEvent(el.getAttribute('data-id')); });
     });
 
-    /* 地球 */
-    if (!globe) {
-      globe = new window.Globe($('globe-box'), {
-        onPick: function (id) { showEvent(id); }
-      });
-      var mode = globe.init(items, follow);
-      $('globe-note').innerHTML = mode === true
-        ? '3D 地球已加载：拖拽旋转、滚轮或双指缩放、点击发光标记查看事件。点击右侧列表也可定位。'
-        : (mode === '2d'
-          ? '当前环境未启用 WebGL，已自动降级为 2D 平面地图，点击标记同样可查看事件。'
-          : '当前环境不支持画布渲染，地球无法显示；请通过右侧事件列表查看全部事件与影响分析。');
-      $('globe-tip').textContent = '点击发光标记查看事件';
+    /* 地球：懒加载（进入视口才初始化），不阻塞首屏；THREE 未就绪时轮询等待 */
+    if (!globeInitPending && !globe) {
+      globeInitPending = true;
+      var secW = $('world');
+      function startGlobe() {
+        function build() {
+          globe = new window.Globe($('globe-box'), { onPick: function (id) { showEvent(id); } });
+          var mode = globe.init(items, follow);
+          $('globe-note').innerHTML = mode === true
+            ? '3D 地球已加载：拖拽旋转、滚轮或双指缩放、点击发光标记查看事件。点击右侧列表也可定位。'
+            : (mode === '2d'
+              ? '当前环境未启用 WebGL，已自动降级为 2D 平面地图，点击标记同样可查看事件。'
+              : '当前环境不支持画布渲染，地球无法显示；请通过右侧事件列表查看全部事件与影响分析。');
+          $('globe-tip').textContent = '点击发光标记查看事件';
+        }
+        if (typeof window.THREE !== 'undefined') { build(); return; }
+        $('globe-note') && ($('globe-note').textContent = '地球组件加载中…');
+        var tries = 0;
+        var iv = setInterval(function () {
+          tries++;
+          if (typeof window.THREE !== 'undefined') { clearInterval(iv); build(); }
+          else if (tries > 20) { clearInterval(iv); build(); } /* 超时 → 降级 2D */
+        }, 250);
+      }
+      if (window.IntersectionObserver) {
+        var io = new IntersectionObserver(function (es) {
+          if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); startGlobe(); }
+        }, { rootMargin: '300px 0px' });
+        io.observe(secW);
+      } else { startGlobe(); }
     }
 
     /* 默认展示第一条高影响事件详情 */
@@ -1464,7 +1483,7 @@
 
   /* ---------------- 导航高亮 ---------------- */
   function navSpy() {
-    var links = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+    var links = Array.prototype.slice.call(document.querySelectorAll('.nav-in a'));
     var secs = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
     if (window.IntersectionObserver) {
       var io = new IntersectionObserver(function (entries) {
@@ -1489,24 +1508,28 @@
     }
     initTheme();
     initView();
+    /* 首屏优先渲染「市场总览」（①），让用户立刻有内容可读 */
     snapshotSection();
     heroSection();
     marketSection();
-    top3();
-    logic();
-    hotSection();
-    stocksSection();
-    watchSection();
-    verifyTrackSection();
-    macroSection();
-    decisionSection();
-    worldSection();
-    ['stocks', 'watch', 'macro', 'decision'].forEach(makeCollapsible);
-    setupSugg();
-    setupMinibar();
-    setupNavFade();
-    navSpy();
-    $('modal').addEventListener('click', function (e) { if (e.target === this) App.closeModal(); });
+    /* 其余模块放到下一帧再渲染，保证首屏先把①画出来，避免一次性长阻塞 */
+    (window.requestAnimationFrame || function (f) { setTimeout(f, 0); })(function () {
+      top3();
+      logic();
+      hotSection();
+      stocksSection();
+      watchSection();
+      verifyTrackSection();
+      macroSection();
+      decisionSection();
+      worldSection();
+      ['stocks', 'watch', 'macro', 'decision'].forEach(makeCollapsible);
+      setupSugg();
+      setupMinibar();
+      setupNavFade();
+      navSpy();
+      $('modal').addEventListener('click', function (e) { if (e.target === this) App.closeModal(); });
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
