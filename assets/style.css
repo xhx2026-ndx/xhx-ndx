@@ -239,14 +239,13 @@ a:hover { text-decoration: underline; }
 [data-theme="dark"] .nav-scroll { background: rgba(11, 15, 25, .88); backdrop-filter: blur(16px); }
 [data-theme="light"] .nav-scroll { background: rgba(250, 250, 249, .86); backdrop-filter: saturate(180%) blur(18px); }
 .nav-in {
-  max-width: var(--maxw); margin: 0 auto; padding: 0 20px;
-  display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+  max-width: var(--maxw); margin: 0 auto; padding: 0 12px;
+  display: flex; flex-wrap: nowrap; gap: 2px; overflow-x: clip;
 }
 .nav-in::-webkit-scrollbar { display: none; }
 .nav a {
-  flex: 0 0 auto; margin: 5px 2px; padding: 7px 13px 7px 9px; min-height: 34px;
-  display: flex; align-items: center; gap: 8px;
+  flex: 1 1 0; min-width: 0; margin: 5px 1px; padding: 7px 2px; min-height: 34px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
   font-size: 13px; color: var(--text-2);
   border-radius: 9px; white-space: nowrap;
   transition: color .16s, background .16s, transform .1s;
@@ -254,15 +253,6 @@ a:hover { text-decoration: underline; }
 .nav a:hover { color: var(--text); text-decoration: none; background: var(--idle-soft); }
 .nav a:active { transform: scale(.95); }
 .nav a.on { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
-/* 干净的圆形序号徽标，替代笨重的 ①②③ 字符 */
-.nav-no {
-  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 19px; height: 19px; border-radius: 50%;
-  font-style: normal; font-size: 11px; font-weight: 700; line-height: 1;
-  background: var(--idle-soft); color: var(--text-2);
-  transition: background .16s, color .16s;
-}
-.nav a.on .nav-no { background: var(--accent); color: #fff; box-shadow: 0 2px 6px var(--ring); }
 .nav-fade {
   position: absolute; right: 0; top: 0; bottom: 0; width: 46px;
   pointer-events: none; display: none;
