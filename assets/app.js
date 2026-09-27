@@ -757,24 +757,24 @@
       + '<span class="pill grey">已标记 ' + done + ' / ' + rows.length + '</span>'
       + '<span style="font-size:12px;color:var(--text-3)">'
       + '判断写出来就必须能被证伪——三个月后回看这张表，比任何观点都值钱</span></div>'
-      + '<div class="tbl-scroll"><table class="tbl">'
-      + '<tr><th style="width:92px">状态</th><th style="width:150px">来源</th><th>验证点（达到什么数字算对 / 算错）</th></tr>';
+      + '<div class="tbl-scroll"><table class="tbl vtbl">'
+      + '<thead><tr><th style="width:84px">状态</th><th style="width:110px">来源</th><th>验证点（达到什么数字算对 / 算错）</th></tr></thead><tbody>';
     rows.forEach(function (r) {
       var m = marks[r.id] || '';
       var badge = m === 'ok' ? '<span class="pill down">已验证</span>'
         : m === 'no' ? '<span class="pill up">被证伪</span>'
         : '<span class="pill grey">未验证</span>';
-      h += '<tr><td>' + badge
+      h += '<tr><td class="st">' + badge
         + '<select style="margin-top:6px;width:100%" onchange="App.markVerify(\'' + esc(r.id) + '\',this.value)">'
         + '<option value=""' + (m === '' ? ' selected' : '') + '>未验证</option>'
         + '<option value="ok"' + (m === 'ok' ? ' selected' : '') + '>已验证</option>'
         + '<option value="no"' + (m === 'no' ? ' selected' : '') + '>被证伪</option>'
         + '</select></td>'
-        + '<td style="font-size:12px;color:var(--text-3)">' + esc(r.src) + '</td>'
+        + '<td class="src-td" style="font-size:12px;color:var(--text-3)">' + esc(r.src) + '</td>'
         + '<td><b style="font-size:13px">' + esc(r.title) + '</b>'
-        + '<div style="font-size:12.5px;color:var(--text-2);margin-top:4px">' + esc(r.v) + '</div></td></tr>';
+        + '<div style="font-size:12.5px;color:var(--text-2);margin-top:4px">' + r.v + '</div></td></tr>';
     });
-    h += '</table></div>'
+    h += '</tbody></table></div>'
       + '<div style="font-size:11.5px;color:var(--text-3);margin-top:10px">'
       + '标记保存在本机浏览器，刷新不丢。建议每周围坐一次，把「被证伪」的那几条单独复盘——'
       + '错在哪里比对了什么更重要。</div></div>';

@@ -643,6 +643,21 @@ section { margin-top: var(--sp-4); scroll-margin-top: 68px; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl .num { font-variant-numeric: tabular-nums; }
 .tbl-scroll { overflow-x: auto; }
+/* 验证点追踪表：≤640px 改卡片堆叠，验证点独占整行（原来状态92px+来源150px 把它挤成窄条） */
+@media (max-width: 640px) {
+  .vtbl thead { display: none; }
+  .vtbl, .vtbl tbody { display: block; }
+  .vtbl tr {
+    display: block;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg-2);
+    padding: 11px 12px; margin-bottom: 10px;
+  }
+  .vtbl td { display: block; padding: 0; border-bottom: none; }
+  .vtbl td.st { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .vtbl td.st select { margin-top: 0 !important; width: auto !important; flex: 1 1 auto; max-width: 130px; margin-left: auto; }
+  .vtbl td.src-td { font-size: 11.5px !important; margin-bottom: 6px; }
+}
 
 /* ============ 关注清单 ============ */
 .wl { border-left: 3px solid var(--accent); padding-left: 13px; margin-bottom: 16px; }
