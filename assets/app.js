@@ -57,7 +57,7 @@
     var b = document.getElementById('theme-btn');
     if (b) b.textContent = t === 'dark' ? '☀ 浅色模式' : '☾ 深色模式';
   }
-  function initTheme() { applyTheme(LS.get('theme', 'dark')); }
+  function initTheme() { applyTheme(LS.get('theme', 'light')); }
 
   /* ============================================================
      数据时效状态机（五态：LIVE / DELAYED / CLOSED / STALE / MANUAL）
@@ -1335,7 +1335,7 @@
       LS.set('vmark', m);
     },
     toggleTheme: function () {
-      var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+      var cur = document.documentElement.getAttribute('data-theme') || 'light';
       var nx = cur === 'dark' ? 'light' : 'dark';
       LS.set('theme', nx);
       applyTheme(nx);

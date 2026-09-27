@@ -6,6 +6,14 @@
 <title>美股投资跟踪台 · 决策线索 + 世界局势地球</title>
 <meta name="description" content="把零散的美股信息转化为可执行的决策线索：市场总览、三件大事、交易逻辑、自选股评估、关注清单、宏观画像、决策中心与世界局势3D地球。">
 <link rel="stylesheet" href="assets/style.css">
+<script>
+/* 防闪烁：在样式应用前先恢复用户上次选择的主题（默认浅色） */
+try {
+  var _t = JSON.parse(localStorage.getItem('umt.theme') || 'null');
+  if (_t !== 'dark' && _t !== 'light') _t = 'light';
+  document.documentElement.setAttribute('data-theme', _t);
+} catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+</script>
 </head>
 <body>
 
@@ -94,7 +102,7 @@
         <input id="sk-name" placeholder="中文名（可选）" style="width:150px" autocomplete="off">
         <button onclick="App.addStock()">添加自选</button>
         <button class="ghost" onclick="App.resetStocks()">恢复默认池</button>
-        <span style="font-size:12px;color:var(--muted);align-self:center">自选与持仓保存在本机浏览器，不会上传</span>
+        <span style="font-size:12px;color:var(--text-3);align-self:center">自选与持仓保存在本机浏览器，不会上传</span>
       </div>
     </div>
     <div id="sk"></div>
@@ -149,13 +157,13 @@
             <span><i style="background:#DCA96B"></i>宏观</span>
           </div>
         </div>
-        <div id="globe-note" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+        <div id="globe-note" style="font-size:12px;color:var(--text-3);margin-top:8px"></div>
       </div>
       <div>
         <div class="card tight" style="max-height:520px;display:flex;flex-direction:column">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <b style="font-size:13.5px">全球事件</b>
-            <span id="evt-count" style="font-size:12px;color:var(--muted)"></span>
+            <span id="evt-count" style="font-size:12px;color:var(--text-3)"></span>
             <button class="mini ghost" style="margin-left:auto" onclick="App.toggleFollowAll()">只看我关注的</button>
           </div>
           <div class="evt-list" id="evt-list"></div>
