@@ -177,16 +177,36 @@ Vercel / Netlify / Cloudflare Pages 都能给不含 workbuddy 的域名
 
 ## 七、线上访问
 
-当前（WorkBuddy 托管）：<https://us-market-tracker.app.workbuddy.host/>
+### 主站点（GitHub Pages，推荐）
 
-手机、平板、别人的电脑都能直接打开，无需安装。
-但它的域名含 workbuddy 且**改不了**——想换请看上一节。
+**<https://xhx2026-ndx.github.io/xhx-ndx/>**
 
-⚠️ **这个地址上的是快照**。数据不会自己更新，每次改完内容或跑完 `refresh.py` 后
-需要重新发布一次（在 WorkBuddy 里说「重新发布」，或由 07:30 的定时任务自动完成）。
+- 仓库：<https://github.com/xhx2026-ndx/xhx-ndx>（Public）
+- 域名里没有 workbuddy，XHX + NDX（纳指代码）
+- 数据每天自动更新：定时任务跑 `refresh.py` → git push → Pages 自动重新部署
 
-托管到 GitHub Pages 之后就是**真正的自动更新**了：Actions 每天定时跑脚本并提交，
-Pages 自动重新部署，全程无人值守。
+### 备份站点（WorkBuddy 托管）
+
+<https://us-market-tracker.app.workbuddy.host/>
+
+作为备用入口保留，但它是**快照**（需手动或定时重新发布才会同步），且域名含 workbuddy 且改不掉。
+
+### 关于每日自动更新
+
+当前架构是「WorkBuddy 定时任务 → git push → GitHub Pages 自动部署」：
+
+| 时间 | 做什么 |
+|---|---|
+| 周二–周六 04:30 | 跑 refresh.py 刷行情 + push |
+| 周二–周六 07:30 | 核对新闻、更新文字判断 + push |
+
+之所以没用 GitHub Actions：①当前 token 缺 `workflow` scope，推不上去；
+②更重要的是 **Actions 只能刷数字，写不了「三件大事」这类判断**——那必须靠 AI 每天读新闻。
+所以定时任务直接推送是更完整的方案。
+
+等 token 补上 workflow scope 后，可以把 `.github/workflows/daily-refresh.yml` 也推上去作为兜底（本地文件已准备好）。
+
+⚠️ **token 于 2026-12-26 过期**，届时需更新凭证，否则自动推送会失败。
 
 ## 八、设计上刻意坚持的几条
 
