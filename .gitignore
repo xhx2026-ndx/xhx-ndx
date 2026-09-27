@@ -13,3 +13,6 @@ __pycache__/
 
 # 本地临时
 /tmp
+
+# GitHub Actions：当前 token 无 workflow scope，改为由定时任务直接 push（见 README）
+.github/workflows/
