@@ -129,18 +129,64 @@ HV60 = 近 60 个交易日
 1. **保留红涨绿跌**（中国用户习惯），未按西式配色（绿涨红跌）。
 2. 浅色主题沿用马卡龙色板，未按「10 色」的严格约束。
 
+## 六点六、换一个不含 workbuddy 的网址
+
+⚠️ **WorkBuddy 自带的域名 `*.app.workbuddy.host` 无法改名**。
+实测过两条路都失败：重新发布传新前缀、先下线再重建——返回的都是原域名（底层 sandboxId 不变）。
+所以想让网址里不出现 workbuddy，只能**换托管平台**。
+
+### 方案 A：GitHub Pages（推荐，免费 + 真正的每日自动更新）
+
+仓库已经准备好了（`.github/workflows/daily-refresh.yml` 会在每个交易日收盘后
+自动跑 `refresh.py` 并提交，Pages 随之重新部署——**不依赖任何人工操作**）。
+
+你需要做的只有三件事：
+
+```bash
+# 1. 在 https://github.com/new 建一个空仓库，名字填 xhx-ndx（别勾选 README/gitignore）
+# 2. 登录 GitHub（二选一）
+gh auth login                      # 推荐，浏览器授权
+#   或准备一个 Personal Access Token（勾选 repo 权限）
+
+# 3. 推送
+./deploy.sh <你的GitHub用户名>
+```
+
+然后在仓库 **Settings → Pages → Source 选 `Deploy from a branch`，
+Branch 选 `main`，目录选 `/ (root)` → Save**。约 1 分钟后访问：
+
+```
+https://<用户名>.github.io/xhx-ndx/
+```
+
+想更短可以再加一条 `CNAME`：在仓库 Settings → Pages → Custom domain 里填你自己的域名，
+然后在域名商那里加一条 CNAME 记录指向 `<用户名>.github.io`。
+
+### 方案 B：用自己的域名做 URL 转发（最快，5 分钟）
+
+如果你已有域名，在域名商后台加一条**隐性转发（URL Frame，也叫隐藏转发）**，
+目标填当前的 workbuddy 地址。效果是地址栏全程显示你自己的域名，真实地址不暴露。
+注意别选「显性转发/301」，那个会跳回真实地址。
+
+### 方案 C：其他静态托管
+
+Vercel / Netlify / Cloudflare Pages 都能给不含 workbuddy 的域名
+（`xxx.vercel.app` / `xxx.netlify.app` / `xxx.pages.dev`），
+把整个目录上传即可。Vercel 和 Netlify 也有免费的定时构建（Cron），
+可以替代上面的 GitHub Actions。
+
 ## 七、线上访问
 
-已发布：<https://us-market-tracker.app.workbuddy.host/>
+当前（WorkBuddy 托管）：<https://us-market-tracker.app.workbuddy.host/>
 
 手机、平板、别人的电脑都能直接打开，无需安装。
+但它的域名含 workbuddy 且**改不了**——想换请看上一节。
 
-⚠️ **部署的是快照**。线上数据不会自己更新——每次改完内容或跑完 `refresh.py` 后，
-需要重新发布一次（在 WorkBuddy 里说「重新发布」即可）。
+⚠️ **这个地址上的是快照**。数据不会自己更新，每次改完内容或跑完 `refresh.py` 后
+需要重新发布一次（在 WorkBuddy 里说「重新发布」，或由 07:30 的定时任务自动完成）。
 
-想让线上自动更新，有两条路：
-1. 把项目托管到 GitHub Pages / Cloudflare Pages，用 GitHub Actions 定时跑 `refresh.py` 并提交——真正的每日自动更新。
-2. 保持现在的静态部署，只在需要时手动重新发布。
+托管到 GitHub Pages 之后就是**真正的自动更新**了：Actions 每天定时跑脚本并提交，
+Pages 自动重新部署，全程无人值守。
 
 ## 八、设计上刻意坚持的几条
 
