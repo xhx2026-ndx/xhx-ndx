@@ -1,0 +1,15 @@
+# 原始 TopoJSON，体积大且可由 build_geo.py 重新下载
+data/countries-50m.json
+data/countries-110m.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 系统
+.DS_Store
+*.swp
+
+# 本地临时
+/tmp

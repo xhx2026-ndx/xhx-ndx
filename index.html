@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>美股投资跟踪台 · 决策线索 + 世界局势地球</title>
+<meta name="description" content="把零散的美股信息转化为可执行的决策线索：市场总览、三件大事、交易逻辑、自选股评估、关注清单、宏观画像、决策中心与世界局势3D地球。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="hdr-top">
+      <div>
+        <h1>美股投资跟踪台<span class="sig">大熊</span></h1>
+        <div class="sub">盘前 5 分钟检查台 · 把零散信息变成可执行的决策线索</div>
+      </div>
+      <button class="theme-btn" id="theme-btn" onclick="App.toggleTheme()">☀ 浅色模式</button>
+    </div>
+    <div class="meta">
+      <span id="m-asof">数据时间 —</span>
+      <span id="m-session">市场状态 —</span>
+      <span>数据源：腾讯财经 / 新浪财经 / 东方财富 / 新华社 / 路透</span>
+    </div>
+  </div>
+</header>
+
+<div class="minibar" id="minibar">
+  <div class="minibar-in" id="minibar-in"></div>
+</div>
+
+<nav class="nav-wrap" id="nav-wrap">
+  <div class="nav-scroll">
+    <div class="nav-in" id="nav-in">
+      <a href="#market" class="on">① 市场总览</a>
+      <a href="#top3">② 三件大事</a>
+      <a href="#logic">③ 交易逻辑</a>
+      <a href="#stocks">④ 自选股</a>
+      <a href="#watch">⑤ 关注清单</a>
+      <a href="#macro">⑥ 宏观画像</a>
+      <a href="#decision">⑦ 决策中心</a>
+      <a href="#world">⑧ 世界局势</a>
+    </div>
+    <div class="nav-fade" id="nav-fade"><span>›</span></div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ① 市场总览 -->
+  <section id="market">
+    <div class="sec-hd">
+      <span class="no">1</span><h2>市场整体情况</h2>
+      <span class="tip">三大指数 + 情绪指标 + 一句话核心矛盾 + 加仓减仓建议</span>
+    </div>
+    <div id="snap"></div>
+    <div id="hero"></div>
+    <div id="act3" class="act3"></div>
+    <div id="m-indices" class="grid g3"></div>
+    <div id="m-senti" class="grid g2" style="margin-top:14px"></div>
+    <div id="m-cross"></div>
+    <div id="m-advice" style="margin-top:14px"></div>
+  </section>
+
+  <!-- ② 三件大事 -->
+  <section id="top3">
+    <div class="sec-hd">
+      <span class="no">2</span><h2>最重要的三件事</h2>
+      <span class="tip">发生了什么 · 为什么重要 · 接下来关注什么</span>
+    </div>
+    <div id="t3"></div>
+  </section>
+
+  <!-- ③ 交易逻辑 -->
+  <section id="logic">
+    <div class="sec-hd">
+      <span class="no">3</span><h2>市场交易逻辑</h2>
+      <span class="tip">当前主线 · 资金流向 · 新手提示</span>
+    </div>
+    <div id="lg"></div>
+    <div id="hot"></div>
+  </section>
+
+  <!-- ④ 自选股 -->
+  <section id="stocks">
+    <div class="sec-hd">
+      <span class="no">4</span><h2>自选股评估</h2>
+      <span class="tip">最新动态 · 技术走势 · 资金面 · 估值 · 操作建议</span>
+    </div>
+    <div class="card tight">
+      <div class="addstk">
+        <input id="sk-code" placeholder="股票代码，如 AAPL" style="width:150px" autocomplete="off">
+        <input id="sk-name" placeholder="中文名（可选）" style="width:150px" autocomplete="off">
+        <button onclick="App.addStock()">添加自选</button>
+        <button class="ghost" onclick="App.resetStocks()">恢复默认池</button>
+        <span style="font-size:12px;color:var(--muted);align-self:center">自选与持仓保存在本机浏览器，不会上传</span>
+      </div>
+    </div>
+    <div id="sk"></div>
+  </section>
+
+  <!-- ⑤ 关注清单 -->
+  <section id="watch">
+    <div class="sec-hd">
+      <span class="no">5</span><h2>后续关注清单</h2>
+      <span class="tip">经济数据 · 公司财报 · 政策动向，含影响与应对</span>
+    </div>
+    <div id="wl"></div>
+    <div id="vtrack"></div>
+  </section>
+
+  <!-- ⑥ 宏观画像 -->
+  <section id="macro">
+    <div class="sec-hd">
+      <span class="no">6</span><h2>宏观画像</h2>
+      <span class="tip">关键指标 · 通俗解释 · 对市场的综合影响</span>
+    </div>
+    <div id="mc"></div>
+  </section>
+
+  <!-- ⑦ 决策中心 -->
+  <section id="decision">
+    <div class="sec-hd">
+      <span class="no">7</span><h2>决策中心</h2>
+      <span class="tip">风险偏好 + 持仓管理 → 个性化调仓 / 止盈止损 / 事件应对</span>
+    </div>
+    <div id="dc"></div>
+  </section>
+
+  <!-- ⑧ 世界局势 -->
+  <section id="world">
+    <div class="sec-hd">
+      <span class="no">8</span><h2>世界局势 · 3D 地球</h2>
+      <span class="tip">点击标记看详情 · 拖拽旋转 · 滚轮/双指缩放 · 可订阅跟踪</span>
+    </div>
+    <div class="grid" style="grid-template-columns: 1.35fr 1fr; gap:14px" id="wd-grid">
+      <div>
+        <div class="globe-wrap" id="globe-box">
+          <div id="continent-layer"></div>
+          <div class="globe-hud">
+            拖拽旋转 · 滚轮/双指缩放<br>
+            <span id="globe-tip">点击发光标记查看事件</span>
+          </div>
+          <div class="globe-legend">
+            <span><i style="background:#E08A8A"></i>冲突</span>
+            <span><i style="background:#8FB4D8"></i>会谈</span>
+            <span><i style="background:#BBA9D4"></i>政策</span>
+            <span><i style="background:#DCA96B"></i>宏观</span>
+          </div>
+        </div>
+        <div id="globe-note" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+      </div>
+      <div>
+        <div class="card tight" style="max-height:520px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <b style="font-size:13.5px">全球事件</b>
+            <span id="evt-count" style="font-size:12px;color:var(--muted)"></span>
+            <button class="mini ghost" style="margin-left:auto" onclick="App.toggleFollowAll()">只看我关注的</button>
+          </div>
+          <div class="evt-list" id="evt-list"></div>
+        </div>
+      </div>
+    </div>
+    <div id="evt-detail" style="margin-top:14px"></div>
+  </section>
+
+  <div class="foot">
+    <p><b>数据说明：</b>行情数据由 <code>refresh.py</code> 定时抓取（腾讯财经 / 新浪财经 / 东方财富），
+    每次刷新会覆盖 <code>data/market.js</code>。宏观指标与事件内容来自新华社、央视、路透、Schwab、Saxo、
+    第一财经等公开报道，每条都标注了来源与时间。</p>
+    <p><b>关于「恐慌指数」：</b>VXN（纳指100波动率指数）与中证红利对应的隐含波动率指数没有免费实时源。
+    本页统一改用<b>已实现波动率</b>口径：HV20 = 近20个交易日日收益标准差 × √252 × 100，
+    并给出它在过去250个交易日中的分位。纳指用 NDX、中证红利用 000922.SH，两者口径一致可直接比较。</p>
+    <p><b>免责声明：</b>本页所有内容是数据整理与逻辑推演，不构成投资建议。市场有风险，决策请自行判断并承担后果。</p>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="hd"><h3 id="md-title"></h3><button class="x" onclick="App.closeModal()">✕</button></div>
+    <div class="bd" id="md-body"></div>
+  </div>
+</div>
+
+<script src="data/geo.js"></script>
+<script src="data/market.js"></script>
+<script src="data/macro.js"></script>
+<script src="data/events.js"></script>
+<!-- 3D 地球依赖：优先本地文件（离线可用），缺失时回退 CDN，再缺失则降级为 2D 地图 -->
+<script src="assets/vendor/three.min.js"></script>
+<script>
+if (!window.THREE) {
+  var _s = document.createElement('script');
+  _s.src = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+  _s.async = false;
+  document.head.appendChild(_s);
+}
+</script>
+<script src="assets/globe.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
