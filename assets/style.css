@@ -209,8 +209,32 @@ a:hover { text-decoration: underline; }
 .theme-btn:hover { color: var(--text); border-color: var(--border-hi); transform: translateY(-1px); }
 .theme-btn:active { transform: scale(.95); }
 
+/* 版式切换（手机版 / 电脑版）分段控件 */
+.hdr-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.view-toggle {
+  display: inline-flex; background: var(--chip-bg);
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  padding: 3px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+}
+.view-toggle .vt {
+  border: none; background: transparent; color: var(--text-2);
+  border-radius: var(--radius-pill); padding: 5px 12px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+  min-height: 32px; box-shadow: none;
+  transition: background .15s, color .15s, transform .1s;
+}
+.view-toggle .vt:hover { color: var(--text); }
+.view-toggle .vt:active { transform: scale(.95); }
+.view-toggle .vt.on {
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-deep) 100%);
+  color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 2px 8px var(--ring);
+}
+
 /* ============ Nav（8 项全可达 + 横向滚动提示） ============ */
-.nav-wrap { position: sticky; top: 0; z-index: 80; }
+.nav-wrap { position: sticky; top: 0; z-index: 80; box-shadow: var(--shadow); transition: top .2s ease; }
+/* 顶部状态栏出现时，导航下移让位，两者同时冻结在顶部 */
+.minibar.on + .nav-wrap { top: 40px; }
 .nav-scroll { position: relative; background: var(--card); border-bottom: 1px solid var(--border); }
 [data-theme="dark"] .nav-scroll { background: rgba(11, 15, 25, .88); backdrop-filter: blur(16px); }
 [data-theme="light"] .nav-scroll { background: rgba(250, 250, 249, .86); backdrop-filter: saturate(180%) blur(18px); }
@@ -291,6 +315,7 @@ section { margin-top: var(--sp-4); scroll-margin-top: 58px; }
 .g3 { grid-template-columns: repeat(3, 1fr); }
 .g4 { grid-template-columns: repeat(4, 1fr); }
 .g6 { grid-template-columns: repeat(6, 1fr); }
+.wd-grid { grid-template-columns: 1.35fr 1fr; gap: 14px; }
 
 @media (max-width: 1000px) {
   .g6 { grid-template-columns: repeat(3, 1fr); }
@@ -303,6 +328,15 @@ section { margin-top: var(--sp-4); scroll-margin-top: 58px; }
   .hdr { padding: 32px 0 28px; }
   .hdr-in, .nav-in { padding: 0 14px; }
   .card { padding: 16px; }
+  .hdr h1 { font-size: 20px; }
+  .hdr .sub { font-size: 12.5px; margin-top: 8px; }
+  .hdr .meta { margin-top: 12px; }
+  .hdr .meta span { padding: 3px 10px; font-size: 11px; }
+  .hdr-actions { width: 100%; }
+}
+/* 世界局势：窄屏时左右两栏堆叠，避免挤压 */
+@media (max-width: 900px) {
+  .wd-grid { grid-template-columns: 1fr; }
 }
 
 /* ============ 今日快照 ============ */
@@ -888,6 +922,19 @@ button.del:active { transform: scale(.96); }
   font-size: var(--fs-note); color: var(--text-3); line-height: 1.85;
 }
 .foot b { color: var(--text-2); }
+
+/* ============ 强制桌面版（手机上点「电脑版」时恢复多列） ============ */
+html.force-desktop .wd-grid { grid-template-columns: 1.35fr 1fr !important; }
+html.force-desktop .g6 { grid-template-columns: repeat(6, 1fr); }
+html.force-desktop .g4 { grid-template-columns: repeat(4, 1fr); }
+html.force-desktop .g3 { grid-template-columns: repeat(3, 1fr); }
+html.force-desktop .g2 { grid-template-columns: repeat(2, 1fr); }
+html.force-desktop .snap-grid { grid-template-columns: repeat(6, 1fr); }
+html.force-desktop .act3 { grid-template-columns: repeat(3, 1fr); }
+html.force-desktop .form { grid-template-columns: repeat(4, 1fr); }
+html.force-desktop .kv { grid-template-columns: repeat(4, 1fr); }
+html.force-desktop .pos-row { grid-template-columns: 1.1fr .9fr .9fr .9fr 1fr auto; }
+html.force-desktop .pos-row .hide { display: flex !important; }
 
 .hide { display: none !important; }
 .right { text-align: right; }

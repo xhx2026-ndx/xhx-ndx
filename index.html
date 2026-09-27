@@ -24,7 +24,13 @@ try {
         <h1>美股投资跟踪台<span class="sig">大熊</span></h1>
         <div class="sub">盘前 5 分钟检查台 · 把零散信息变成可执行的决策线索</div>
       </div>
-      <button class="theme-btn" id="theme-btn" onclick="App.toggleTheme()">☀ 浅色模式</button>
+      <div class="hdr-actions">
+        <div class="view-toggle" id="view-toggle" role="group" aria-label="版式切换">
+          <button class="vt" data-view="mobile" type="button">手机版</button>
+          <button class="vt" data-view="desktop" type="button">电脑版</button>
+        </div>
+        <button class="theme-btn" id="theme-btn" onclick="App.toggleTheme()">☀ 浅色模式</button>
+      </div>
     </div>
     <div class="meta">
       <span id="m-asof">数据时间 —</span>
@@ -142,7 +148,7 @@ try {
       <span class="no">8</span><h2>世界局势 · 3D 地球</h2>
       <span class="tip">点击标记看详情 · 拖拽旋转 · 滚轮/双指缩放 · 可订阅跟踪</span>
     </div>
-    <div class="grid" style="grid-template-columns: 1.35fr 1fr; gap:14px" id="wd-grid">
+    <div class="grid wd-grid" id="wd-grid">
       <div>
         <div class="globe-wrap" id="globe-box">
           <div id="continent-layer"></div>

@@ -60,6 +60,34 @@
   function initTheme() { applyTheme(LS.get('theme', 'light')); }
 
   /* ============================================================
+     版式切换（手机版 / 电脑版）
+     · 默认按 UA 自动识别：手机 → 手机版，其余 → 电脑版
+     · 也可在页头手动切换，选择存 localStorage（umt.view）
+     · 「电脑版」= 给 html 加 .force-desktop，恢复多列网格
+     ============================================================ */
+  function isMobileUA() {
+    return /Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent || '');
+  }
+  function applyView(v) {
+    document.documentElement.classList.toggle('force-desktop', v === 'desktop');
+    var btns = document.querySelectorAll('#view-toggle .vt');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('on', btns[i].getAttribute('data-view') === v);
+    }
+    LS.set('view', v);
+  }
+  function initView() {
+    var v = LS.get('view', null);
+    if (v !== 'desktop' && v !== 'mobile') v = isMobileUA() ? 'mobile' : 'desktop';
+    applyView(v);
+    var t = document.getElementById('view-toggle');
+    if (t) t.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('.vt') : null;
+      if (b) applyView(b.getAttribute('data-view'));
+    });
+  }
+
+  /* ============================================================
      数据时效状态机（五态：LIVE / DELAYED / CLOSED / STALE / MANUAL）
      铁律：宁可显示「数据缺失 / 已过时」，也不静默展示过期数字。
      ============================================================ */
@@ -1460,6 +1488,7 @@
         '<div class="callout risk">未读到行情数据。请在项目目录运行 <code>python3 refresh.py</code> 生成 data/market.js。</div>');
     }
     initTheme();
+    initView();
     snapshotSection();
     heroSection();
     marketSection();
