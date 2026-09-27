@@ -343,7 +343,7 @@ DEFAULT_WATCH = [
 ]
 
 INDEX_DEFS = [
-    ("usIXIC", "纳斯达克综合", "科技成长风向标，对利率最敏感"),
+    ("usNDX", "纳指100", "科技龙头100强，对利率与AI叙事最敏感"),
     ("usDJI", "道琼斯工业", "传统价值蓝筹，防御属性更强"),
     ("usINX", "标普500", "美股整体基准，机构业绩比较基准"),
 ]
@@ -540,7 +540,7 @@ def build():
 
     print("→ 抓取指数日K（用于迷你走势图）...")
     series = {}
-    for code, kind, key in [("usIXIC", "us", ".IXIC"), ("sh000922", "cn", "sh000922"),
+    for code, kind, key in [("usNDX", "us", ".NDX"), ("sh000922", "cn", "sh000922"),
                             ("usDJI", "us", ".DJI"), ("usINX", "us", ".INX")]:
         rows = kline(kind, key, 90)
         if rows:

@@ -245,15 +245,24 @@ a:hover { text-decoration: underline; }
 }
 .nav-in::-webkit-scrollbar { display: none; }
 .nav a {
-  flex: 0 0 auto; margin: 5px 2px; padding: 7px 13px; min-height: 32px;
-  display: flex; align-items: center;
+  flex: 0 0 auto; margin: 5px 2px; padding: 7px 13px 7px 9px; min-height: 34px;
+  display: flex; align-items: center; gap: 8px;
   font-size: 13px; color: var(--text-2);
-  border-radius: 8px; white-space: nowrap;
+  border-radius: 9px; white-space: nowrap;
   transition: color .16s, background .16s, transform .1s;
 }
 .nav a:hover { color: var(--text); text-decoration: none; background: var(--idle-soft); }
 .nav a:active { transform: scale(.95); }
 .nav a.on { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+/* 干净的圆形序号徽标，替代笨重的 ①②③ 字符 */
+.nav-no {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px; border-radius: 50%;
+  font-style: normal; font-size: 11px; font-weight: 700; line-height: 1;
+  background: var(--idle-soft); color: var(--text-2);
+  transition: background .16s, color .16s;
+}
+.nav a.on .nav-no { background: var(--accent); color: #fff; box-shadow: 0 2px 6px var(--ring); }
 .nav-fade {
   position: absolute; right: 0; top: 0; bottom: 0; width: 46px;
   pointer-events: none; display: none;
@@ -275,7 +284,7 @@ section { margin-top: var(--sp-4); scroll-margin-top: 58px; }
 .sec-hd h2 { margin: 0; font-size: var(--fs-sect); font-weight: 600; letter-spacing: -.01em; }
 .sec-hd .no {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: 7px;
+  width: 24px; height: 24px; border-radius: 50%;
   font-size: 12px; font-weight: 700; color: rgba(28, 33, 48, .82); flex: 0 0 auto;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .05);
 }
@@ -333,6 +342,11 @@ section { margin-top: var(--sp-4); scroll-margin-top: 58px; }
   .hdr .meta { margin-top: 12px; }
   .hdr .meta span { padding: 3px 10px; font-size: 11px; }
   .hdr-actions { width: 100%; }
+  .hdr-top { flex-direction: column; align-items: stretch; gap: 12px; }
+  .hdr-actions { display: flex; gap: 10px; flex-wrap: nowrap; justify-content: space-between; align-items: center; }
+  .view-toggle { flex: 1 1 auto; }
+  .view-toggle .vt { flex: 1 1 0; text-align: center; }
+  .theme-btn { flex: 0 0 auto; white-space: nowrap; }
 }
 /* 世界局势：窄屏时左右两栏堆叠，避免挤压 */
 @media (max-width: 900px) {
