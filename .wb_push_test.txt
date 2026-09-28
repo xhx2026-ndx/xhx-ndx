@@ -1,0 +1,1 @@
+push_contents.py selftest
