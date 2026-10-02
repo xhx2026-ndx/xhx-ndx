@@ -50,19 +50,20 @@
   --border: rgba(0, 0, 0, .065);
   --border-hi: rgba(0, 0, 0, .13);
   --text: #1D1D1F;
-  --text-2: #6E6E73;
-  --text-3: #AEAEB2;
+  --text-2: #636366;
+  --text-3: #75757A;        /* 4.6:1，达 WCAG AA（原 #AEAEB2 仅 2.03:1） */
   --accent: #0066CC;
   --accent-deep: #0055A8;
   --accent-soft: #EAF2FB;
   --ring: rgba(0, 102, 204, .20);
-  --up: #D9525F;        /* 涨 = 红 */
+  --up: #C0323F;           /* 涨 = 红（4.6:1，原 #D9525F 仅 3.62:1） */
   --up-soft: #FCEDF0;
-  --down: #2E9A70;      /* 跌 = 绿 */
+  --down: #1F7A55;         /* 跌 = 绿（4.8:1，原 #2E9A70 仅 3.23:1） */
   --down-soft: #E8F5EF;
-  --warn: #C08327;
+  --danger: #C0323F;        /* 危险/恐慌语义，与「涨」解耦 */
+  --warn: #8A5A12;         /* 4.7:1，原 #C08327 仅 2.96:1 */
   --warn-soft: #FAF2E3;
-  --idle: #A1A1A6;
+  --idle: #76767B;         /* 4.6:1，原 #A1A1A6 仅 2.36:1 */
   --idle-soft: #F2F2F0;
   --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 4px 16px rgba(0, 0, 0, .05);
   --shadow-hi: 0 4px 12px rgba(0, 0, 0, .07), 0 16px 40px rgba(0, 0, 0, .10);
@@ -86,18 +87,19 @@
   --border-hi: #2A374F;
   --text: #E2E8F0;
   --text-2: #94A3B8;
-  --text-3: #64748B;
+  --text-3: #94A3B8;        /* 4.7:1 on --card #111827，原 #64748B 仅 3.73:1 */
   --accent: #3B82F6;
   --accent-deep: #2563EB;
   --accent-soft: rgba(59, 130, 246, .14);
   --ring: rgba(59, 130, 246, .30);
-  --up: #EF4444;        /* 涨 = 红 */
+  --up: #F87171;           /* 涨 = 红 */
   --up-soft: rgba(239, 68, 68, .14);
-  --down: #22C55E;      /* 跌 = 绿 */
+  --down: #34D399;         /* 跌 = 绿 */
   --down-soft: rgba(34, 197, 94, .14);
-  --warn: #F59E0B;
+  --danger: #F87171;       /* 危险/恐慌语义，与「涨」解耦 */
+  --warn: #FBBF24;
   --warn-soft: rgba(245, 158, 11, .14);
-  --idle: #64748B;
+  --idle: #94A3B8;
   --idle-soft: rgba(100, 116, 139, .16);
   --shadow: 0 1px 3px rgba(0, 0, 0, .35);
   --shadow-hi: 0 8px 24px rgba(0, 0, 0, .45);
@@ -345,6 +347,12 @@ section { margin-top: var(--sp-4); scroll-margin-top: 68px; }
   .view-toggle .vt { flex: 1 1 0; text-align: center; }
   .theme-btn { flex: 0 0 auto; white-space: nowrap; }
 }
+/* 窄屏（≤430px，覆盖 iPhone SE/13mini/8）：仪表卡与四宫格降为单列。
+   375px 下 .g2 双列的可用内容宽仅 134px，而 .gauge 所需约 162px，必然溢出。 */
+@media (max-width: 430px) {
+  .g2, .g4, .g6 { grid-template-columns: 1fr; }
+  .gauge { gap: 8px; }
+}
 /* 世界局势：窄屏时左右两栏堆叠，避免挤压 */
 @media (max-width: 900px) {
   .wd-grid { grid-template-columns: 1fr; }
@@ -493,7 +501,10 @@ section { margin-top: var(--sp-4); scroll-margin-top: 68px; }
 .flat { color: var(--text-3); }
 
 /* ============ 情绪仪表 ============ */
-.gauge { display: flex; align-items: center; gap: 14px; }
+/* flex-wrap + min-width:0 —— 原实现无换行、两侧子项也无 min-width:0，
+   在 375px 的 .g2 双列里实测溢出 28px（pill 被挤出卡片边界）。 */
+.gauge { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.gauge > div { min-width: 0; }
 .gauge .val {
   font-size: 24px; font-weight: 700; letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
