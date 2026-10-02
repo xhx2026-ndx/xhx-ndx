@@ -316,16 +316,15 @@
       if (id && self.opts.onPick) self.opts.onPick(id);
     });
 
-    /* --- 动画 --- */
-    var visible = true, t = 0;
-    if (window.IntersectionObserver) {
-      new IntersectionObserver(function (es) { visible = es[0].isIntersecting; },
-        { threshold: 0.01 }).observe(box);
-    }
+    /* --- 动画 ---
+       不可见时必须 cancelAnimationFrame 停帧，而不是只 return 跳过绘制：
+       原实现每帧都重新 requestAnimationFrame，用户滚走地球后 rAF 仍以 60fps
+       空转，在手机上持续耗电。 */
+    var visible = true, t = 0, rafId = null, obs = null;
     var tmp = new THREE.Vector3();
     function loop() {
-      requestAnimationFrame(loop);
-      if (!visible) return;
+      if (!visible) { rafId = null; return; }   // 停帧；被 IO 唤醒时再重启
+      rafId = requestAnimationFrame(loop);
       t += 0.016;
       if (autoSpin) { rotY += 0.0011; group.rotation.y = rotY; group.updateMatrixWorld(true); }
 
@@ -356,6 +355,17 @@
 
       renderer.render(scene, camera);
     }
+    /* 可见性观察：进入视口才启动 rAF，离开则停帧并释放GPU */
+    if (window.IntersectionObserver) {
+      obs = new IntersectionObserver(function (es) {
+        visible = es[0].isIntersecting;
+        if (visible && rafId == null) loop();      // 重新进入视口 → 恢复
+        else if (!visible && rafId != null) {     // 离开视口 → 停帧
+          cancelAnimationFrame(rafId); rafId = null;
+        }
+      }, { threshold: 0.01 });
+      obs.observe(box);
+    }
     loop();
 
     var rt;
@@ -375,6 +385,22 @@
       rotX = Math.max(-1.1, Math.min(1.1, lat * Math.PI / 180));
       applyCamera();
     };
+    /* 释放资源：停帧 + 断开观察器 + 释放 GPU 显存。
+       页面切走或长时间挂后台时调用，避免持续耗电/占显存。 */
+    this.dispose = function () {
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      if (obs) { try { obs.disconnect(); } catch (e) {} obs = null; }
+      try {
+        scene.traverse(function (o) {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) {
+            if (Array.isArray(o.material)) o.material.forEach(function (m) { m.dispose(); });
+            else o.material.dispose();
+          }
+        });
+        renderer.dispose();
+      } catch (e) {}
+    };
     this.ok = true;
     return true;
   };
@@ -389,6 +415,10 @@
     var ctx = cv.getContext && cv.getContext('2d');
     var G = window.WORLD_GEO || {};
     var W = cv.width, H = cv.height;
+    /* 提前绑定 self：本分支在下方 `var self = this` 之前就return，
+       若沿用后面的 hoisted 声明，此处 self 为 undefined，点击事件标记会抛 TypeError。 */
+    var self = this;
+    var onPick = (this.opts && this.opts.onPick) || function () {};
     if (!ctx) {
       // 完全没有 canvas 能力：至少把洲际标注和事件点用 DOM 画出来，保留地理参照
       var lay = document.getElementById('continent-layer');
@@ -409,7 +439,7 @@
           mk.textContent = '●';
           mk.style.pointerEvents = 'auto';
           mk.style.cursor = 'pointer';
-          mk.addEventListener('click', function () { self.opts.onPick && self.opts.onPick(ev.id); });
+          mk.addEventListener('click', function () { onPick(ev.id); });
           lay.appendChild(mk);
         });
       }
