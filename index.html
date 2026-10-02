@@ -104,8 +104,8 @@ try {
     </div>
     <div class="card tight">
       <div class="addstk">
-        <input id="sk-code" placeholder="股票代码，如 AAPL" style="width:150px" autocomplete="off">
-        <input id="sk-name" placeholder="中文名（可选）" style="width:150px" autocomplete="off">
+        <input id="sk-code" placeholder="股票代码，如 AAPL" style="width:150px" autocomplete="off" aria-label="股票代码">
+        <input id="sk-name" placeholder="中文名（可选）" style="width:150px" autocomplete="off" aria-label="中文名（可选）">
         <button onclick="App.addStock()">添加自选</button>
         <button class="ghost" onclick="App.resetStocks()">恢复默认池</button>
         <span style="font-size:12px;color:var(--text-3);align-self:center">自选与持仓保存在本机浏览器，不会上传</span>
@@ -197,23 +197,15 @@ try {
   </div>
 </div>
 
-<script src="data/geo.js"></script>
-<script src="data/market.js"></script>
-<script src="data/macro.js"></script>
-<script src="data/events.js"></script>
-<!-- 3D 地球依赖：本地 three.min.js 异步加载（不阻塞首屏）；缺失时 3 秒后非阻塞回退 CDN；都失败则自动降级 2D 地图 -->
-<script src="assets/vendor/three.min.js" async></script>
-<script>
-  /* 本地 three 没加载成功时，3 秒后非阻塞回退到 CDN（避免阻塞与重复下载） */
-  setTimeout(function () {
-    if (typeof window.THREE === 'undefined') {
-      var _s = document.createElement('script');
-      _s.src = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
-      _s.async = true;
-      document.head.appendChild(_s);
-    }
-  }, 3000);
-</script>
+<!-- 数据脚本：加 defer 消除同步阻塞。
+     defer 仍严格保证执行顺序（geo→market→macro→events→globe→app），但不再阻塞 HTML 解析，
+     浏览器可并行下载并提前绘制骨架。首屏渲染①不再被这 296KB 挡住。 -->
+<script src="data/geo.js" defer></script>
+<script src="data/market.js" defer></script>
+<script src="data/macro.js" defer></script>
+<script src="data/events.js" defer></script>
+<!-- 3D 地球依赖：three.min.js（约167KB gzip）在地球进入视口时才动态注入，
+     不再与首屏资源抢带宽；geo.js 已 defer 就绪，无需CDN 回退兜底 -->
 <script src="assets/globe.js" defer></script>
 <script src="assets/app.js" defer></script>
 </body>
