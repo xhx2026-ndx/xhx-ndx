@@ -14,7 +14,16 @@
 
   var LS = {
     get: function (k, d) { try { var v = localStorage.getItem('umt.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set: function (k, v) { try { localStorage.setItem('umt.' + k, JSON.stringify(v)); } catch (e) {} }
+    set: function (k, v) { try { localStorage.setItem('umt.' + k, JSON.stringify(v)); } catch (e) {} },
+    /* 隐私模式下 set会静默失败，用户在自选/关注/持仓里做的修改刷新后全丢，
+       却没有任何提示——用户会以为是自己操作错了。这里做一次写入探测。 */
+    probe: function () {
+      try {
+        localStorage.setItem('umt.__probe', '1');
+        localStorage.removeItem('umt.__probe');
+        return true;
+      } catch (e) { return false; }
+    }
   };
 
   /* ---------------- 工具 ---------------- */
@@ -91,20 +100,64 @@
      数据时效状态机（五态：LIVE / DELAYED / CLOSED / STALE / MANUAL）
      铁律：宁可显示「数据缺失 / 已过时」，也不静默展示过期数字。
      ============================================================ */
-  function parseWhen(s) {
+  /* parseWhen(s, tz) —— 把数据里的墙钟时间解析成真实时刻。
+     tz 缺省时按「已是本地时间」处理（旧数据兼容）。
+     为什么要 tz：腾讯美股快照的 time 是**美东墙钟**（如 10:20:20），
+     而 vix/dxy/commodities 的是**北京墙钟**（如 22:20:29），asOf 也是北京。
+     若一律按浏览器本地时区解析，北京用户会把刚生成的行情（真实 22:20）
+     读成 10:20 → 误判「已过时 12 小时」，且开盘时段恒显示「盘后」。 */
+  function tzOffsetMs(tz, utcMs) {
+    try {
+      // 取该时区在目标时刻的 UTC 偏移（分钟）：把 UTC 时刻格式化成目标时区墙钟再与 UTC 比较
+      var dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hour12: false,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+      var p = {};
+      dtf.formatToParts(new Date(utcMs)).forEach(function (x) { p[x.type] = x.value; });
+      var asUtc = Date.UTC(+p.year, +p.month - 1, +p.day,
+        +p.hour % 24, +p.minute, +p.second);
+      return asUtc - utcMs;   // 目标时区墙钟 - UTC
+    } catch (e) { return 0; }
+  }
+  function parseWhen(s, tz) {
     if (!s) return null;
-    if (/^\d{14}$/.test(s)) {           // 20260924161448
+    if (/^\d{14}$/.test(s)) {           // 20260924161448（东财口径，本身是北京时间）
       return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8),
                       +s.slice(8, 10), +s.slice(10, 12), +s.slice(12, 14));
     }
-    var t = String(s).replace(' ', 'T');
-    var d = new Date(t);
+    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (!m) return null;
+    /* 纯日期（无时分）：按当天 00:00 本地时间处理。
+       macro.js 里有「2026-10-02」这类只有日期的人工核校时间，
+       原先的正则把 HH:MM 设为必需组，导致这类输入一律解析失败。 */
+    if (m[4] == null) {
+      var dOnly = new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0);
+      return isNaN(dOnly.getTime()) ? null : dOnly;
+    }
+    if (!tz) {                            // 无 tz：按本地墙钟解析（旧数据兼容）
+      var d0 = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+      return isNaN(d0.getTime()) ? null : d0;
+    }
+    // 有 tz：先按 UTC 猜一个时刻，再用该时区偏移校正（标准做法，两次收敛）
+    var guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+    var off = tzOffsetMs(tz, guess);
+    var real = guess - off;
+    // 夏令时切换附近用修正后的偏移再算一次，保证收敛
+    var off2 = tzOffsetMs(tz, real);
+    if (off2 !== off) real = guess - off2;
+    var d = new Date(real);
     return isNaN(d.getTime()) ? null : d;
   }
-  function freshness(timeStr, opts) {
+  /* 数据项的墙钟时间统一入口：自动带上 tz */
+  function itemTime(o) { return o ? parseWhen(o.time, o.tz) : null; }
+
+  /* freshness(o, opts) —— o 可以是数据项（含 time + tz）或时间字符串 */
+  function freshness(o, opts) {
     opts = opts || {};
     if (opts.manual) return { s: 'manual', name: '人工核校', when: opts.manual };
-    var t = parseWhen(timeStr);
+    var t = (o && typeof o === 'object') ? itemTime(o) : parseWhen(o);
     if (!t) return { s: 'stale', name: '时间未知', when: '—' };
     var mins = (Date.now() - t.getTime()) / 60000;
     var s = mins < 20 ? 'live' : (mins < 720 ? 'delayed' : 'stale');
@@ -119,20 +172,29 @@
       + '<b>' + f.name + '</b> ' + esc(f.when) + '</span>';
   }
 
-  /* 下次美股开盘（美东 09:30 ≈ UTC 13:30 夏令 / 14:30 冬令） */
+  /* 下次美股开盘（美东 09:30）。EDT=UTC-4 → 13:30Z；EST=UTC-5 → 14:30Z。
+     原实现把 13:30 和 14:30 一起塞进候选再排序，冬令时会选中 13:30Z（＝08:30 美东），
+     整整早一小时；且只过滤周末、不跳过假日。这里按夏令时精确取，并跳过休市日。 */
   function nextOpen() {
-    var now = new Date(), c = [];
-    for (var d = 0; d < 8; d++) {
-      var b = new Date(now.getTime() + d * 86400000);
-      [13, 14].forEach(function (h) {
-        var t = new Date(Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate(), h, 30, 0));
-        var wd = t.getUTCDay();
-        if (wd >= 1 && wd <= 5 && t > now) c.push(t);
-      });
+    var now = new Date();
+    for (var i = 0; i < 12; i++) {
+      var probe = new Date(now.getTime() + i * 86400000);
+      var p = nyParts(probe);
+      if (!p) break;
+      if (p.wd === 0 || p.wd === 6) continue;
+      if (nyHoliday(p.y, p.m, p.d)) continue;
+      // 该日美东 09:30 对应的 UTC 时刻
+      var guess = Date.UTC(p.y, p.m - 1, p.d, 9, 30, 0);
+      var off = tzOffsetMs('America/New_York', guess);
+      var openUtc = guess - off;
+      var off2 = tzOffsetMs('America/New_York', openUtc);
+      if (off2 !== off) openUtc = guess - off2;
+      var t = new Date(openUtc);
+      if (t > now) return t;
     }
-    c.sort(function (a, b2) { return a - b2; });
-    return c[0] || null;
+    return null;
   }
+
   function countDown(target) {
     if (!target) return '—';
     var ms = target.getTime() - Date.now();
@@ -141,29 +203,149 @@
     if (h >= 24) return Math.floor(h / 24) + ' 天 ' + (h % 24) + ' 小时';
     return (h ? h + ' 小时 ' : '') + m + ' 分';
   }
-  /* 市场状态：休市 / 盘前 / 盘中 / 盘后（按美东时间近似） */
-  function marketState() {
-    var st = sessionLabel();
-    var isWeekend = /休市/.test(st);
-    if (isWeekend) return { dot: 'closed', text: '休市', note: '周末休市' };
-    // 用最近成交时间判断
-    var t = parseWhen((M.indices && M.indices[0]) ? M.indices[0].time : '');
-    if (!t) return { dot: 'closed', text: '休市', note: '无成交时间' };
-    var hh = t.getHours();
-    if (hh >= 21 || hh < 4) return { dot: 'live', text: '盘中', note: '美东交易时段' };
-    if (hh >= 4 && hh < 21) return { dot: 'delayed', text: '盘后', note: '非活跃时段，价差大' };
-    return { dot: 'closed', text: '休市', note: '' };
+  /* 市场状态：休市 / 盘前 / 盘中 / 盘后
+     原则：用「当前时刻 + 美东日历」判断，而不是用「最近成交时间」倒推
+     ——数据停更（接口挂了/定时任务没跑）不等于市场休市，两者必须分开。
+     交易时段（美东）：09:30–16:00；盘前 04:00–09:30；盘后 16:00–20:00。 */
+  function nyParts(date) {
+    // 取目标时刻在美东时区的墙钟字段
+    try {
+      var dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York', hour12: false,
+        weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+      var p = {};
+      dtf.formatToParts(date).forEach(function (x) { p[x.type] = x.value; });
+      var wdMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      return {
+        wd: wdMap[p.weekday],
+        y: +p.year, m: +p.month, d: +p.day,
+        hh: +p.hour % 24, mm: +p.minute
+      };
+    } catch (e) { return null; }
+  }
+  /* 美股法定休市日。NYSE 规则：
+     - 固定日：元旦 1/1、独立日 7/4、圣诞 12/25
+     - 浮动日：MLK（1月第3个周一）、总统日（2月第3个周一）、
+       阵亡将士纪念日（5月最后1个周一）、劳动节（9月第1个周一）、
+       感恩节（11月第4个周四）
+     - 复活节相关：耶稣受难日（复活节前两天，需算法）
+     - 观察日：独立日/元旦落在周末时前后顺延
+     漏判的后果是「假日显示盘中」，与「宁可少判不要错判」的取舍相反，故尽量补全。 */
+  function nyHoliday(y, m, d) {
+    var dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();   // 0=周日
+    var day = new Date(Date.UTC(y, m - 1, d));
+    function nthWeekday(targetM, targetDow, n) {
+      // 返回当月第 n 个星期 targetDow 的日期
+      var first = new Date(Date.UTC(y, targetM - 1, 1));
+      var offset = (targetDow - first.getUTCDay() + 7) % 7;
+      return 1 + offset + (n - 1) * 7;
+    }
+    if (m === 1) {
+      if (d === 1) return '元旦';
+      if (d === nthWeekday(1, 1, 3)) return '马丁路德金日';
+      if (dow === 1 && d >= 15 && d <= 21) return 'MLK日(顺延)';
+    }
+    if (m === 2 && d === nthWeekday(2, 1, 3)) return '总统日';
+    // 耶稣受难日 = 复活节前两天。复活节必在 3/22–4/25，
+    // 故只有两种跨月情形：受难日落在 3 月（复活节 4/1）或 4 月（复活节 3/31 极少见）。
+    var e = easter(y);
+    if (e.m === 4) {
+      if (m === 4 && d === e.d - 2) return '耶稣受难日';
+      if (m === 3 && d === 31 && e.d === 1) return '耶稣受难日';
+    } else if (e.m === 3) {
+      if (m === 3 && d === e.d - 2) return '耶稣受难日';
+      if (m === 4 && d === 1 && e.d === 31) return '耶稣受难日';
+    }
+
+    if (m === 5 && d === lastWeekdayMonday(y, 5)) return '阵亡将士纪念日';
+    if (m === 6) {
+      if (d === 19) return '六月节';
+      // 6/19 落在周六 → 6/18(周五) 休市；落在周日 → 6/20(周一) 休市
+      if (d === 18 && dow === 5) return '六月节(观察日)';
+      if (d === 20 && dow === 1) return '六月节(观察日)';
+    }
+    if (m === 7) {
+      if (d === 4) return '独立日';
+      if (d === 3 && dow === 5) return '独立日(观察日)';   // 7/4 落在周六 → 7/3 休市
+      if (d === 5 && dow === 1) return '独立日(观察日)';   // 落在周日 → 7/5 休市
+    }
+    if (m === 9 && d === nthWeekday(9, 1, 1)) return '劳动节';
+    if (m === 11 && d === nthWeekday(11, 4, 4)) return '感恩节';
+    if (m === 12) {
+      if (d === 25) return '圣诞';
+      if (d === 24 && dow === 5) return '圣诞(观察日)';   // 12/25 落在周六 → 12/24 休市
+      if (d === 26 && dow === 1) return '圣诞(观察日)';
+    }
+    return null;
+    function lastWeekdayMonday(yy, mm) {
+      var last = new Date(Date.UTC(yy, mm, 0)).getUTCDate();   // 当月最后一天
+      var wd = new Date(Date.UTC(yy, mm - 1, last)).getUTCDay();
+      return last - ((wd + 6) % 7);   // 回退到周一
+    }
+  }
+  /* 复活节日期（Meeus 算法）—— 返回 {m, d}，用于推算耶稣受难日 */
+  function easter(y) {
+    var a = y % 19, b = Math.floor(y / 100), c = y % 100;
+    var dd = Math.floor(b / 4), ee = b % 4;
+    var f = Math.floor((b + 8) / 25);
+    var g = Math.floor((b - f + 1) / 3);
+    var h = (19 * a + b - dd - g + 15) % 30;
+    var i = Math.floor(c / 4), k = c % 4;
+    var l = (32 + 2 * ee + 2 * i - h - k) % 7;
+    var m = Math.floor((a + 11 * h + 22 * l) / 451);
+    var month = Math.floor((h + l - 7 * m + 114) / 31);
+    var day = ((h + l - 7 * m + 114) % 31) + 1;
+    return { m: month, d: day };
   }
 
-  /* 下一个待发生事件（从关注清单里找日期最靠前的未来事件） */
+
+  function marketState() {
+    var now = new Date();
+    var p = nyParts(now);
+    if (!p) {
+      // Intl 不可用（极老环境）：退回「按最后成交时间」的旧逻辑，并标明是降级结果
+      var t = itemTime((M.indices || [])[0]);
+      if (!t) return { dot: 'closed', text: '休市', note: '无成交时间' };
+      var hh = t.getHours();
+      return (hh >= 21 || hh < 4)
+        ? { dot: 'live', text: '盘中', note: '按成交时间推断（时区能力受限）' }
+        : { dot: 'delayed', text: '盘后', note: '按成交时间推断（时区能力受限）' };
+    }
+    if (p.wd === 0 || p.wd === 6) return { dot: 'closed', text: '休市', note: '周末休市' };
+    var hol = nyHoliday(p.y, p.m, p.d);
+    if (hol) return { dot: 'closed', text: '休市', note: hol + '休市' };
+    var mins = p.hh * 60 + p.mm;
+    if (mins >= 570 && mins < 960) {          // 09:30–16:00 盘中
+      return { dot: 'live', text: '盘中', note: '美东交易时段（09:30–16:00）' };
+    }
+    if (mins >= 240 && mins < 570) {          // 04:00–09:30 盘前
+      return { dot: 'delayed', text: '盘前', note: '盘前交易时段，价差较大' };
+    }
+    if (mins >= 960 && mins < 1200) {         // 16:00–20:00 盘后
+      return { dot: 'delayed', text: '盘后', note: '盘后交易时段，流动性下降' };
+    }
+    return { dot: 'closed', text: '已收盘', note: '非交易时段，展示的是最近收盘数据' };
+  }
+
+
+  /* 下一个待发生事件（从关注清单里找日期最靠前的未来事件）
+     原实现用 new Date().getFullYear() + 无年份的「10月2日」字符串，跨年后会把
+     所有事件推到次年同月同日（页面会一本正经说「下次事件：10月2日」，实际是 9 个月后）。
+     修正：只接受带年份的条目；无年份/无法解析的不参与选取（仍在关注清单正常展示）。
+     「收盘」类事件按 21:30 而非 00:00 计入，否则提前一整天被当成「下次事件」。 */
   function nextEvent() {
     var y = new Date().getFullYear();
     var best = null;
     (WATCH_LIST || []).forEach(function (w) {
-      var m = String(w.date || '').match(/(\d{1,2})月(\d{1,2})日/);
-      if (!m) return;
-      var d = new Date(y, +m[1] - 1, +m[2]);
-      if (d.getTime() > Date.now() - 86400000 && (!best || d < best.d)) best = { d: d, w: w };
+      var s = String(w.date || '');
+      var m = s.match(/(\d{4})[年-](\d{1,2})月(\d{1,2})[日]?/);
+      if (!m) return;                                  // 无明确年月日 → 不参与
+      if (+m[1] !== y) return;                          // 非本年 → 不参与
+      var d = new Date(+m[1], +m[2] - 1, +m[3], 9, 30, 0);
+      if (/收盘/.test(s)) d.setHours(21, 30, 0, 0);      // 收盘类按北京时间 21:30
+      if (d.getTime() > Date.now() && (!best || d < best.d)) best = { d: d, w: w };
     });
     return best;
   }
@@ -171,8 +353,12 @@
   /* ============================================================
      首屏「今日快照」仪表盘
      ============================================================ */
+  /* 快照卡：键盘可达 + 有 aria-expanded（原来只有 div+onclick，
+     tabIndex=-1、无 role，读屏与键盘用户永远看不到展开的说明） */
   function snapCard(lbl, dot, val, sub, det) {
-    return '<div class="snap-card" onclick="this.classList.toggle(\'open\')">'
+    return '<div class="snap-card" role="button" tabindex="0" aria-expanded="false"'
+      + ' onclick="this.classList.toggle(\'open\');this.setAttribute(\'aria-expanded\',this.classList.contains(\'open\')?\'true\':\'false\')"'
+      + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}">'
       + '<div class="lbl"><i class="dot-st ' + dot + '"></i>' + esc(lbl) + '</div>'
       + '<div class="val">' + val + '</div>'
       + '<div class="sub">' + sub + '</div>'
@@ -189,15 +375,14 @@
     var nxt = nextOpen();
     var ev = nextEvent();
 
-    var fQuote = freshness(ix.time);
-    var fVix = freshness((vix.date || '') + ' ' + (vix.time || ''));
-    var fDxy = freshness((dxy && dxy.date) ? dxy.date + ' ' + (dxy.time || '') : '');
+    var fQuote = freshness(ix);
+    var fVix = freshness(vix.date ? { time: (vix.date || '') + ' ' + (vix.time || '') } : null);
+    var fDxy = freshness(dxy && dxy.date ? { time: dxy.date + ' ' + (dxy.time || '') } : null);
 
     /* 大盘状态：三个指数涨跌方向 */
     var ups = (M.indices || []).filter(function (x) { return (x.pct || 0) > 0; }).length;
-    var allUp = ups === (M.indices || []).length && (M.indices || []).length > 0;
-    var allDown = ups === 0;
-    var dirDot = allUp ? 'up' : allDown ? 'down' : 'warn';
+    /* 原 allUp/allDown/dirDot 算完从不使用，且 dirDot 依赖不存在的
+       .dot-st.up/.down/.warn 类，是死代码——真要启用会显示成无背景圆点。故移除。 */
 
     var c = '';
     c += snapCard('大盘状态', st.dot, st.text,
@@ -211,9 +396,11 @@
       '纳指是三大指数里成长股占比最高的，因此对利率最敏感——贴现率一升，它跌得最快。'
       + '这也是本页面把它放在第一位的原因。<br>' + freshTag(fQuote));
 
-    var vixDot = vix.value == null ? 'closed' : vix.value < 15 ? 'live' : vix.value < 20 ? 'delayed' : 'stale';
-    c += snapCard('VIX 恐慌指数', vixDot, vix.value == null ? '—' : fmt(vix.value),
-      '<span class="' + cls(vix.pct) + '">' + pct(vix.pct) + '</span>　低于15安心 / 20以上紧张',
+    var vixMissing = vix.value == null || isNaN(vix.value);
+    var vixDot = vixMissing ? 'closed' : vix.value < 15 ? 'live' : vix.value < 20 ? 'delayed' : 'stale';
+    c += snapCard('VIX 恐慌指数', vixDot, vixMissing ? '—' : fmt(vix.value),
+      vixMissing ? '<span style="color:var(--text-3)">数据缺失</span>'
+        : '<span class="' + cls(vix.pct) + '">' + pct(vix.pct) + '</span>　低于15安心 / 20以上紧张',
       'VIX 衡量的是「买保险的人有没有变多」。它低说明市场不慌，但也意味着保险便宜——一旦出事，波动率从低位跳得更快。<br>' + freshTag(fVix));
 
     c += snapCard('10Y 美债', 'manual',
@@ -237,8 +424,8 @@
       + '<h3>今日快照</h3>'
       + '<span class="ts">点任意卡片展开说明 · 数据时间 ' + esc(M.asOf || '') + '</span>'
       + '<span class="ts" style="margin-left:auto">'
-      + '<b style="color:var(--down)">' + ups + '</b> 涨 / '
-      + '<b style="color:var(--up)">' + ((M.indices || []).length - ups) + '</b> 跌</span>'
+      + '<b style="color:var(--up)">' + ups + '</b> 涨 / '
+      + '<b style="color:var(--down)">' + ((M.indices || []).length - ups) + '</b> 跌</span>'
       + '</div><div class="snap-grid">' + c + '</div></div>';
   }
 
@@ -327,77 +514,77 @@
   };
 
 var WATCH_LIST = [
-    { date: '10月2日（周五）收盘', tag: '市场确认', hi: 'hi', t: '纳指100 的52周新高能否守住（盘中最高 30935.08）',
+    { date: '2026年10月2日（周五）收盘', tag: '市场确认', hi: 'hi', t: '纳指100 的52周新高能否守住（盘中最高 30935.08）',
       w: '截至北京时间21:52（美东09:52）纳指100 报 30911.31（+1.34%），52周最高就是今天盘中的 30935.08。这是9月下旬以来首次触及52周新高——此前纳指100 从9月的低点 27763 一路反弹，但直到今天才真正回到前高之上。',
       a: '创新高当日能否收在上方，是判断这轮反弹是「情绪修复」还是「趋势重启」的第一道关。<b>应对：</b>不追高，收盘确认后再说；如果收盘回落到 30500 下方，说明今天只是消息驱动的冲高回落。',
       priced: '非农2.9万这个弱数据已被即时定价（期指在数据后直接跳涨1%以上）；但「弱数据 = 经济转差」这个负面含义还没有被定价',
       asym: '向上需要基本面配合（财报季），向下只需要一份数据反转。当前位置追高的风险收益比不好'
     },
 
-    { date: '10月5日（周一）', tag: '美债', hi: 'hi', t: '30年期美债能否连续第二日收在 5.60% 下方',
+    { date: '2026年10月5日（周一）', tag: '美债', hi: 'hi', t: '30年期美债能否连续第二日收在 5.60% 下方',
       w: '门槛是「连续两个交易日」。10月1日收 5.6126%（没达标）；10月2日盘中在非农后跌到 5.570%，若收盘仍在 5.60% 下方则只算第一天。所以下周一（10月5日）是决定「长端见顶」这个判定成不成立的日子。同时看2年期能否守在 4.80% 下方（非农后 4.731%）。',
       a: '连续两日达标 = 压制成长股估值的那条线开始松动，可以考虑恢复对长久期资产的配置；只达标一天就回落 = 按噪音处理。<b>应对：</b>这是本页目前最硬的一条判定规则，不要因为行情好就提前宣布胜利。',
       priced: '非农后的收益率下行已被即时定价；但「长端见顶」这件事本身市场还没有形成共识',
       asym: '门槛设计成连续两日就是为了过滤噪音。若下周一站上 5.70%，则反向警戒触发，说明期限溢价这一轮没走完'
     },
 
-    { date: '10月2日起 3 个交易日', tag: '公司事件', hi: 'hi', t: '美光财报后的股价计分（昨天判「利好出尽」，今天被证伪）',
+    { date: '2026年10月2日起 3 个交易日', tag: '公司事件', hi: 'hi', t: '美光财报后的股价计分（昨天判「利好出尽」，今天被证伪）',
       w: '美光 FY26Q4 营收 542.29 亿美元（同比 +379%，预期 510.7 亿）、调整后 EPS 33.42（预期 31.61）；FY27Q1 指引营收 615 亿 ±15 亿（预期 570.2 亿）、毛利率 86.25%。9月30日盘后 +0.35%、<b>10月1日收盘 +3.03%</b>、10月2日待定。同期存储链全线走强：SK海力士 +5.08%、安森美 +4.18%、应用材料 +3.5%。',
       a: '这是「超预期还有没有用」的正式计分，规则是三个交易日累计。<b>应对：</b>累计为正则「利好出尽」判断作废；但要注意这波涨幅里有相当部分是10月1日2年期美债跌约10bp 给的估值修复，不完全是基本面。',
       priced: '预期本来就打得很满（今年涨273%、营收同比+379%）；10月1日的上涨说明还有边际买盘，但幅度受利率下行影响，含金量要打折',
       asym: '若三个交易日累计为负，说明超预期溢价确实被抽走，杀伤大；累计为正也只是回到「符合最乐观预期」，上行空间有限'
     },
 
-    { date: '10月10日起', tag: '财报季', hi: 'md', t: '美股 Q3 财报季开启',
+    { date: '2026年10月10日起', tag: '财报季', hi: 'md', t: '美股 Q3 财报季开启',
       w: '远期市盈率已从 22 倍压到约 19 倍（十年均值），股价只能靠盈利说话。今年多了一个变数：美光演示了「超预期还是有用的」（10月1日 +3.03%），但它的涨幅里有一部分是利率下行给的。所以财报季的分量仍在<b>指引</b>而不是<b>已实现的数字</b>。',
       a: '关注 AI 资本开支的延续性与利润率。<b>应对：</b>财报季是个股风险而不是指数风险，重仓单票者必须提前减。',
       priced: 'Q3 预期已随 AI 资本开支上调过一轮；美光证明上调后的预期仍能被超出，但股价反应需要利率配合',
       asym: '个股风险远大于指数风险，重仓单票的下行空间是不对称的'
     },
 
-    { date: '10月13日（周二）', tag: '公司财报', hi: 'md', t: '摩根大通（JPM）等大型银行打头阵',
+    { date: '2026年10月13日（周二）', tag: '公司财报', hi: 'md', t: '摩根大通（JPM）等大型银行打头阵',
       w: '净息差是否随加息上调、信用损失准备金的计提指引。注意金融是9月标普500 表现最差的板块（跌超6%，四个月来首次月度下跌、2023年3月以来最差单月），黑石9月 -21%、贝莱德 -8%——<b>利率上行并不必然利好金融</b>，这一点要先证伪自己的直觉。10月1日银行股仍然涨跌不一：摩根大通 +0.76%、富国 +0.28%，高盛 -0.42%、美银 -1.31%、花旗 -1.92%。',
       a: '若净息差确认扩张、信用指引平稳，价值风格会进一步跑赢成长。<b>应对：</b>可作为风格切换的确认信号。',
       priced: '净息差扩张已被部分定价，但「10月不加」给后续加息路径增加了不确定性',
       asym: '确认信号强于意外：若信用损失指引明显恶化，「加息利好银行」的叙事会被质疑'
     },
 
-    { date: '10月14日（周三）', tag: '经济数据', hi: 'hi', t: '9月 CPI',
+    { date: '2026年10月14日（周三）', tag: '经济数据', hi: 'hi', t: '9月 CPI',
       w: '9月油价高位运行（布伦特一度冲到106上方、10月1日收102.31）与柴油零售价创历史新高（约6.40美元/加仑），其传导尚未完全计入 CPI。注意核心 PCE 已经明显转好（8月同比3.0%），但 CPI 与 PCE 口径不同，别混用。注意 TradeStation 的戴维·拉塞尔提醒：8月PCE 相对滞后，没反映9月柴油涨价。',
       a: '核心 CPI 月增 >0.25% → 12月加息基本锁定 → 收益率上行，今天涨的这部分会被拿走。<b>应对：</b>这是非农之后下一个硬关口，中间没有重磅数据，市场可能提前一周开始定价。',
       priced: '9月能源高位运行的传导尚未完全体现，这是本轮最难预判的一份数据',
       asym: '非对称性仍然很强：超预期 → 加息锁定 + 长端上冲；低于预期 → 只是情绪修复，因为长端对数据的反应已被证明要看美联储脸色'
     },
 
-    { date: '10月中旬（待定）', tag: '公司事件', hi: 'md', t: 'Anthropic IPO 定价（目标估值 2 万亿美元）',
+    { date: '2026年10月中旬（待定）', tag: '公司事件', hi: 'md', t: 'Anthropic IPO 定价（目标估值 2 万亿美元）',
       w: '泄露的招股书草案显示公司寻求最高 2 万亿美元估值，同时警告先进 AI 可能对人类构成生存风险、亏损扩大。同日 OpenAI 搁置前沿模型发布、Oura 已中止 IPO。这将成为华尔街给 AI 龙头定价的新锚。',
       a: '定价接近或超过目标 → 给整个 AI 板块重新定锚；定价大幅缩水或延期 → AI 叙事裂缝扩大。<b>应对：</b>这是叙事风险而非业绩风险，重仓 AI 链条者应提前设定减仓线。',
       priced: '2万亿美元是招股书目标而非市场定价；美光10月1日的表现说明二级市场对 AI 利好仍愿意出价，但前提是利率别再上',
       asym: '下行杀伤大于上行提振：长端收益率虽已回落但仍在高位，融资窗口只是打开了一半'
     },
 
-    { date: '10月21日（周三）', tag: '公司财报', hi: 'md', t: '特斯拉（TSLA）财报',
+    { date: '2026年10月21日（周三）', tag: '公司财报', hi: 'md', t: '特斯拉（TSLA）财报',
       w: '当前 PE 约 342 倍，是估值风险最集中的权重股之一，也是散户情绪的温度计。公司此前披露签署 200 亿美元三年期延迟提款定期贷款 + 80 亿美元五年期循环信贷 + 20 亿美元364天循环信贷。10月2日盘中 +4.44%，是今天涨幅最大的权重股。',
       a: '不及预期 → 高估值成长股集体承压。<b>应对：</b>持有者提前设定止损位，不要用「信仰」代替纪律。',
       priced: 'PE 342 倍意味着预期已经打满，容错空间接近零',
       asym: '下行空间远大于上行——不及预期会拖累整个高估值成长板块'
     },
 
-    { date: '10月27-28日（周二-周三）', tag: '政策会议', hi: 'hi', t: 'FOMC 利率决议（年内两次之一，另一次为12月8-9日）',
+    { date: '2026年10月27-28日（周二-周三）', tag: '政策会议', hi: 'hi', t: 'FOMC 利率决议（年内两次之一，另一次为12月8-9日）',
       w: '9月加息 25bp 后的首场会议，当前利率区间 3.75%~4.00%。10月维持不变的概率已达 71.8%（CME 每经口径）至 83%（华尔街日报口径），所以这次会议的看点不在决议本身，在点阵图与声明措辞。鹰派未退场：达拉斯联储主席洛根10月1日称9月加息只是重要第一步、目标区间还需再上调 50 个基点或更多；卡什卡利对10月是否行动没有强烈倾向，但称若经济持续强韧，终端利率可能高于其预期。',
       a: '鹰派且暗示后续仍有空间 → 高收益率收紧流动性 → 杀估值。<b>应对：</b>会议前一周把仓位调到「无论结果如何都能接受」的水平。',
       priced: '10月不加已被大部分定价；12月累计加息25bp 的概率仍有 60.4%（CME 口径），所以「被推迟不等于被取消」这句话依然成立',
       asym: '不确定性已完全从「10月加不加」转移到「12月还有没有」：本次决议的重要性下降，点阵图与措辞的重要性上升'
     },
 
-    { date: '11月3日（周二）', tag: '政治事件', hi: 'md', t: '美国中期选举（距今约32天）',
+    { date: '2026年11月3日（周二）', tag: '政治事件', hi: 'md', t: '美国中期选举（距今约32天）',
       w: '能源政策（SPR 释放、柴油出口禁令）、对华关税执行节奏、财政走向都可能被选举周期工具化。当前压力：30年房贷利率 7.58%（2023年11月以来最高）、柴油零售价约6.40美元/加仑、9月消费者信心 81.9（2014年4月以来最低）。<b>新变量：特朗普在《时代》采访中称有可能在中期选举后加大对伊朗的打击力度</b>——这意味着选前反而可能是地缘的平静期，风险被推到选后。联邦拨款方面，特朗普9月2日已签署 H.R. 6500（公法119-103），政府资金维持到 <b>12月11日</b>。',
       a: '政策可预测性下降 → 波动率易升难降。<b>应对：</b>选举前控制单一事件的敞口，比押方向更重要。',
       priced: '政策摇摆尚未被市场定价；伊朗官员已私下表示选前难达成协议，而特朗普称选后可能加大打击——「选前无协议、选后有风险」是当前主流预期',
       asym: '任一党取得压倒性多数都会被解读为「政策可预测性上升」，反而是利好；反之若选前出现极端政策表态，控制单一事件敞口比押方向更重要'
     },
 
-    { date: '11月底（时间锚）', tag: '地缘军事', hi: 'hi', t: '美军第三支航母打击群与近万兵力到位中东',
+    { date: '2026年11月底（时间锚）', tag: '地缘军事', hi: 'hi', t: '美军第三支航母打击群与近万兵力到位中东',
       w: '据美媒援引美国官员，五角大楼正向中东派遣第三支航母打击群及多艘海军陆战队舰船，增派近万名兵力，舰艇战机与人员预计11月底前陆续抵达。同期特朗普称若无法达成可接受协议可能升级对伊朗的打击、《时代》采访中称选后加大轰炸「有可能」。当前海峡状态：本周至少三艘油轮在穿峡时遇袭，10月1日一艘油轮遭不明飞行物击中起火。',
       a: '这是本轮地缘风险<b>唯一有时间锚的事件</b>——不像谈判那样一天反转三次。若届时同时出现海峡实质中断，油价与长端会同步上冲。<b>应对：</b>不必现在就减仓，但要在10月底前把「11月底」这个日期纳入仓位计划。',
       priced: '尚未被定价：今天油价跌回99.5是弱非农与弱美元给的，不是地缘缓和给的。市场在为一个就业数据定价，而不是为一支航母编队定价',
@@ -411,7 +598,7 @@ var WATCH_LIST = [
       asym: '上行空间大于下行：利好尚未定价，一旦美方程序走完并正式生效，日用消费品进口商与部分中概会直接受益；但延期本身已被格里尔明说，所以「继续拖」不算意外'
     },
 
-    { date: '12月11日（周五）', tag: '财政风险', hi: 'md', t: '联邦拨款临时法案到期（下一个财政僵局点）',
+    { date: '2026年12月11日（周五）', tag: '财政风险', hi: 'md', t: '联邦拨款临时法案到期（下一个财政僵局点）',
       w: '现行临时拨款（H.R. 6500 / 公法119-103，9月2日签署）把政府资金维持到12月11日，把真正的 1.8 万亿美元支出之争推到了中期选举之后。上次（2025年）的停摆持续43天，CBO 估计持续成本 70 亿美元以上、约 67 万人被迫无薪休假。当前全球长端的参照：英国30年期国债收益率已升至 6.01%（1998年3月以来最高），法德10年期利差升至2011年11月以来最高。',
       a: '财政僵局重演 → 期限溢价再上行 → 长端收益率再冲高，这恰恰是现在最压估值的那条线。<b>应对：</b>把它当作「长端收益率的已知上行风险」提前计入，不要等到12月才反应。',
       priced: '尚未被定价——当前长端收益率的解释里，财政与期限溢价已被反复点名，但12月这个具体日期还没进入市场视线',
@@ -445,7 +632,7 @@ function marketSection() {
             + '<i class="knob" style="left:' + pos52.toFixed(0) + '%"></i></div>'
             + '<div class="ends"><span>' + fmt(x.low52, 0) + '</span><span>' + fmt(x.high52, 0) + '</span></div>'
             + '</div>' : '')
-        + '<div class="rng" style="margin-top:8px">' + freshTag(freshness(x.time)) + '</div>'
+        + '<div class="rng" style="margin-top:8px">' + freshTag(freshness(x)) + '</div>'
         + '</div>';
     });
     $('m-indices').innerHTML = html;
@@ -457,19 +644,21 @@ function marketSection() {
       vix.value == null ? '—' : (vix.value < 15 ? '市场偏乐观' : vix.value < 20 ? '中性偏谨慎' : vix.value < 25 ? '谨慎' : '恐慌'),
       vix.value == null ? 50 : Math.min(100, vix.value / 40 * 100),
       '新浪财经 ' + esc(vix.date || '') + ' ' + esc(vix.time || ''),
-      vixScale(vix.value));
+      vix.value == null ? null : vixScale(vix.value), 'abs');
 
     var nlab = hvLabel(nd.percentile);
-    s += gaugeCard('纳指恐慌度（NDX 已实现波动率 HV20）', nd.hv20, null,
-      '用纳斯达克100近20个交易日的实际波动算出的年化波动率。VXN 无免费实时源，这里用同口径的已实现波动率代替，可与中证红利直接比较。',
+    s += gaugeCard('纳指恐慌度（NDX 已实现波动率 HV20）', nd.percentile, null,
+      '用纳斯达克100近20个交易日的实际波动算出的年化波动率。VXN 无免费实时源，这里用同口径的已实现波动率代替，可与中证红利直接比较。绝对值 HV20=' + (nd.hv20 == null ? '—' : fmt(nd.hv20)) + '，此处按它在过去250日中的分位着色（与下方文案同源）。',
       nlab, nd.percentile == null ? 50 : nd.percentile,
-      '东方财富/新浪日K计算，截至 ' + esc(nd.asOf || '') + '，分位样本 ' + (nd.sample || '—') + ' 日');
+      '东方财富/新浪日K计算，截至 ' + esc(nd.asOf || '') + '，分位样本 ' + (nd.sample || '—') + ' 日',
+      null, 'pct');
 
     var clab = hvLabel(cd.percentile);
-    s += gaugeCard('中证红利恐慌度（000922 已实现波动率 HV20）', cd.hv20, null,
-      '中证红利指数近20个交易日的年化已实现波动率。红利资产本身波动就低，看它的分位比看绝对值更有意义。',
+    s += gaugeCard('中证红利恐慌度（000922 已实现波动率 HV20）', cd.percentile, null,
+      '中证红利指数近20个交易日的年化已实现波动率。绝对值 HV20=' + (cd.hv20 == null ? '—' : fmt(cd.hv20)) + '，此处按分位着色。红利资产本身波动就低，看它的分位比看绝对值更有意义。',
       clab, cd.percentile == null ? 50 : cd.percentile,
-      '腾讯日K计算，截至 ' + esc(cd.asOf || '') + '，分位样本 ' + (cd.sample || '—') + ' 日');
+      '腾讯日K计算，截至 ' + esc(cd.asOf || '') + '，分位样本 ' + (cd.sample || '—') + ' 日',
+      null, 'pct');
 
     if (csi) {
       s += '<div class="card"><div class="nm" style="font-size:13.5px;font-weight:600">' + esc(csi.name) + '</div>'
@@ -554,72 +743,146 @@ function marketSection() {
     return '波动极高（恐慌区）';
   }
 
-  function gaugeCard(title, val, chg, desc, label, barPct, src, extra) {
-    var col = 'var(--accent)';
-    if (typeof val === 'number') col = val >= 25 ? 'var(--up)' : (val >= 15 ? 'var(--warn)' : 'var(--down)');
+  /* gaugeCard(title, val, chg, desc, label, barPct, src, extra, scaleKind)
+     scaleKind: 'abs' = 按绝对值刻度着色（VIX 用）
+                'pct' = 按分位着色（HV 类用，保证颜色与文案同源）
+     铁律：val 缺失时不得给出任何带方向的信号色或指针位置——
+     原实现 val=null 会落到 'down'（绿）且指针钉在 0%（最强看多），把缺失伪装成了利好。 */
+  function gaugeCard(title, val, chg, desc, label, barPct, src, extra, scaleKind) {
+    var missing = (val == null || isNaN(val));
+    /* 颜色与 pill 必须来自同一个判定，否则会出现「黄色数字配极低波动文案」的自相矛盾 */
+    var band = missing ? 'none'
+      : scaleKind === 'pct'
+        ? (val >= 70 ? 'high' : val >= 40 ? 'mid' : 'low')
+        : (val >= 25 ? 'high' : val >= 15 ? 'mid' : 'low');
+    var COL = { high: 'var(--danger)', mid: 'var(--warn)', low: 'var(--down)', none: 'var(--idle)' };
+    var PILL = { high: 'up', mid: 'warn', low: 'down', none: 'grey' };
+    var col = COL[band];
+    var bar = missing ? '<div class="lbl" style="color:var(--text-3);margin-top:9px">数据缺失，本次不给出读数</div>'
+      : (extra || '<div class="bar"><i style="width:' + Math.max(3, Math.min(100, barPct)) + '%;background:' + col + '"></i></div>');
     return '<div class="card hoverable">'
       + '<div class="gauge">'
-      + '<div><div class="val" style="color:' + col + '">' + (val == null ? '—' : fmt(val)) + '</div>'
+      + '<div><div class="val" style="color:' + col + '">' + (missing ? '—' : fmt(val)) + '</div>'
       + '<div class="lbl">' + esc(title) + '</div></div>'
       + '<div style="margin-left:auto;text-align:right">'
-      + '<span class="pill ' + (val >= 25 ? 'up' : val >= 15 ? 'warn' : 'down') + '">' + esc(label) + '</span>'
+      + '<span class="pill ' + PILL[band] + '">' + (missing ? '无数据' : esc(label)) + '</span>'
       + (chg != null ? '<div class="lbl" style="margin-top:4px">日变动 ' + pct(chg) + '</div>' : '')
       + '</div></div>'
-      + (extra || '<div class="bar"><i style="width:' + Math.max(3, Math.min(100, barPct)) + '%;background:' + col + '"></i></div>')
+      + bar
       + '<div style="font-size:12.5px;color:var(--text-2);margin-top:9px">' + esc(desc) + '</div>'
       + '<div class="src">来源：' + esc(src) + '</div>'
       + '</div>';
   }
 
-  /* VIX 专用：0-30 刻度条（<15 绿 / 15-20 黄 / >20 红） */
+  /* VIX 专用：0-30 刻度条（<15 绿 / 15-20 黄 / >20 红）
+     铁律：缺失时不画指针。原实现 v=null 会算成 0%，把指针钉在最左端=「极度安心」，
+     等于把数据缺失渲染成最强的看多信号。 */
   function vixScale(v) {
-    var p = Math.max(0, Math.min(100, (v == null ? 0 : v) / 30 * 100));
+    if (v == null || isNaN(v)) {
+      return '<div class="lbl" style="color:var(--text-3);font-size:11.5px">无读数，刻度不显示</div>';
+    }
+    var p = Math.max(0, Math.min(100, v / 30 * 100));
     return '<div class="scalebar"><div class="track">'
       + '<div class="knob" style="left:' + p.toFixed(1) + '%"></div></div>'
       + '<div class="ticks"><span>0</span><span>15</span><span>20</span><span>30+</span></div></div>';
   }
 
   function sessionLabel() {
-    var t = M.indices && M.indices[0] ? M.indices[0].time : '';
+    var ix = (M.indices || [])[0];
+    var t = itemTime(ix);
     if (!t) return '市场状态 —';
-    var d = new Date(t.replace(' ', 'T'));
-    var day = d.getDay();
-    if (day === 0 || day === 6) return '美股休市（周末）· 最近收盘 ' + t.slice(0, 10);
-    return '最近成交 ' + t;
+    var p = nyParts(t);
+    if (!p) return '最近成交 ' + (ix.time || '');
+    var w = ['日', '一', '二', '三', '四', '五', '六'][p.wd];
+    var hh = String(p.hh).padStart(2, '0'), mm = String(p.mm).padStart(2, '0');
+    return '最近成交 ' + ix.time + '（美东 ' + p.m + '月' + p.d + '日 周' + w + ' ' + hh + ':' + mm + '）';
   }
 
-  /* ---------------- 仓位建议引擎 ---------------- */
+  /* ---------------- 仓位建议引擎 ----------------
+     铁律：信号缺失或解析失败时，必须在 reasons 里显式说明，不能静默当作 0 分。
+     否则用户无法区分「信号恰好中性」和「信号坏了」——这两种情况的应对完全不同。 */
+  function numOf(o) {
+    /* 从展示文案里取数值：macro.js 的 value 是给人看的文本（可能含"约""非农后"等注记）。
+       规则：允许"约/大约/超/低于"这类修饰前缀，但拒绝以年份开头（"2026年12月11日"
+       里的年份是日期不是数值）。那种失真是静默的，所以宁可取不到也不取错。 */
+    if (!o) return NaN;
+    var s = String(o.value == null ? '' : o.value).trim();
+    if (/^\d{4}\s*[年\/-]/.test(s)) return NaN;// 以年份开头 → 是日期不是信号值
+    var m = s.match(/^(?:约|大约|大约是|超|超过|低于|近)?\s*(-?\d+(?:\.\d+)?)/);
+    return m ? parseFloat(m[1]) : NaN;
+  }
+  /* 人工核校项的时效：超过 days 天视为过期，不参与打分（并显式告知） */
+  function macroStale(o, days) {
+    if (!o || !o.time) return false;
+    var t = parseWhen(String(o.time).slice(0, 10));
+    if (!t) return false;
+    return (Date.now() - t.getTime()) / 86400000 > (days || 7);
+  }
   function scoreMarket() {
-    var vol = M.vol || {}, sc = 0, reasons = [];
+    var vol = M.vol || {}, sc = 0, reasons = [], missing = [];
     var vix = (vol.vix || {}).value;
-    if (vix != null) {
+    if (vix != null && !isNaN(vix)) {
       if (vix < 15) { sc += 2; reasons.push('VIX ' + fmt(vix) + '（&lt;15，市场情绪偏乐观）→ +2'); }
       else if (vix < 20) { reasons.push('VIX ' + fmt(vix) + '（15–20，中性）→ 0'); }
       else if (vix < 25) { sc -= 1; reasons.push('VIX ' + fmt(vix) + '（20–25，谨慎）→ −1'); }
       else { sc -= 2; reasons.push('VIX ' + fmt(vix) + '（&gt;25，恐慌）→ −2'); }
-    }
+    } else { missing.push('VIX 恐慌指数'); }
     var nd = vol.ndx || {};
-    if (nd.percentile != null) {
+    if (nd.percentile != null && !isNaN(nd.percentile)) {
       if (nd.percentile < 30) { sc += 1; reasons.push('纳指波动分位 ' + nd.percentile + '%（低波动）→ +1'); }
       else if (nd.percentile > 70) { sc -= 1; reasons.push('纳指波动分位 ' + nd.percentile + '%（高波动）→ −1'); }
       else reasons.push('纳指波动分位 ' + nd.percentile + '%（中性）→ 0');
-    }
+    } else { missing.push('纳指波动分位'); }
     var ix = (M.indices || [])[0];
     if (ix && ix.high52 && ix.value) {
-      var dist = (ix.high52 - ix.value) / ix.high52 * 100;
-      if (dist < 2) { sc += 1; reasons.push('纳指距52周高点仅 ' + dist.toFixed(1) + '%（趋势强）→ +1'); }
-      else if (dist > 5) { sc -= 1; reasons.push('纳指距52周高点 ' + dist.toFixed(1) + '%（趋势转弱）→ −1'); }
-      else reasons.push('纳指距52周高点 ' + dist.toFixed(1) + '% → 0');
-    }
-    // 宏观项（来自人工核校的 macro.js）
+      // 用「在 52 周区间中的位置」而非「距高点百分比」：
+      // 后者的分母是高点，对高位指数恒趋近 0，只在「是否新高」一个点上跳变，区分度极低。
+      var low = ix.low52, pos = (low != null && ix.high52 > low)
+        ? (ix.value - low) / (ix.high52 - low) * 100 : null;
+      if (pos != null) {
+        if (pos >= 90) { sc += 1; reasons.push('纳指处于 52 周区间 ' + pos.toFixed(0) + '% 高位（趋势强）→ +1'); }
+        else if (pos <= 30) { sc -= 1; reasons.push('纳指处于 52 周区间 ' + pos.toFixed(0) + '% 低位（趋势弱）→ −1'); }
+        else reasons.push('纳指处于 52 周区间 ' + pos.toFixed(0) + '%（中性）→ 0');
+      }
+    } else { missing.push('纳指 52 周位置'); }
+
     var ust = findMacro('ust10'), prob = findMacro('hike_prob');
-    if (ust && parseFloat(ust.value) >= 5) { sc -= 1; reasons.push('10年期美债 ' + ust.value + '（≥5%，压制估值）→ −1'); }
-    else if (ust && parseFloat(ust.value) < 4.5) { sc += 1; reasons.push('10年期美债 ' + ust.value + '（&lt;4.5%）→ +1'); }
-    if (prob && parseFloat(prob.value) >= 60) { sc -= 1; reasons.push('10月加息概率 ' + prob.value + '（鹰派预期）→ −1'); }
+    var ustV = numOf(ust);
+    if (!isNaN(ustV)) {
+      if (macroStale(ust, 7)) {
+        reasons.push('10年期美债 ' + ust.value + '（人工核校值已超过 7 天，仅记录不计入）→ 0');
+      } else if (ustV >= 5) { sc -= 1; reasons.push('10年期美债 ' + ust.value + '（≥5%，压制估值）→ −1'); }
+      else if (ustV < 4.5) { sc += 1; reasons.push('10年期美债 ' + ust.value + '（&lt;4.5%）→ +1'); }
+      else reasons.push('10年期美债 ' + ust.value + '（4.5%–5.0% 中性区）→ 0');
+    } else { missing.push('10年期美债（macro.js 数值无法解析）'); }
+
+    var probV = numOf(prob);
+    if (!isNaN(probV)) {
+      if (macroStale(prob, 7)) {
+        reasons.push('加息概率 ' + prob.value + '（人工核校值已超过 7 天，仅记录不计入）→ 0');
+      } else if (probV >= 60) { sc -= 1; reasons.push('加息概率 ' + prob.value + '（≥60%，鹰派预期）→ −1'); }
+      else if (probV <= 30) { sc += 1; reasons.push('加息概率 ' + prob.value + '（≤30%，鸽派预期）→ +1'); }
+      else reasons.push('加息概率 ' + prob.value + '（30%–60% 中性）→ 0');
+    } else { missing.push('加息概率（macro.js 数值无法解析）'); }
+
     var oil = (M.commodities || []).filter(function (c) { return c.key === 'hf_OIL'; })[0];
-    if (oil && oil.value >= 100) { sc -= 1; reasons.push('布伦特原油 ' + fmt(oil.value) + ' 美元（≥100，通胀压力）→ −1'); }
-    else if (oil) { reasons.push('布伦特原油 ' + fmt(oil.value) + ' 美元 → 0'); }
-    return { score: sc, reasons: reasons };
+    if (oil && oil.value != null && !isNaN(oil.value)) {
+      if (oil.value >= 100) { sc -= 1; reasons.push('布伦特原油 ' + fmt(oil.value) + ' 美元（≥100，通胀压力）→ −1'); }
+      else reasons.push('布伦特原油 ' + fmt(oil.value) + ' 美元（&lt;100）→ 0');
+    } else { missing.push('布伦特原油'); }
+
+    /* 缺失信号必须显式列出——这是「不静默」的关键 */
+    if (missing.length) {
+      reasons = reasons.concat(missing.map(function (k) {
+        return '<b style="color:var(--warn)">[' + k + ' 数据缺失，本次不计分]</b>';
+      }));
+    }
+    return {
+      score: sc, reasons: reasons, missing: missing,
+      // 信号不完整时收窄建议区间，避免用残缺信号给出精确仓位
+      partial: missing.length > 0,
+      total: 6
+    };
   }
 
   function findMacro(key) {
@@ -650,10 +913,20 @@ function marketSection() {
     }
 
     var act;
-    if (gap == null) act = '尚未录入持仓。填入「总资产」与持仓后，这里会给出相对当前仓位的加减仓判断。';
+    if (r.partial && r.score === 0) {
+      act = '<b>本次不给出仓位建议</b>：' + r.missing.length + ' 项信号缺失（'
+        + esc(r.missing.join('、')) + '）。宁可不给建议，也不要用残缺信号算出一个看起来精确的仓位。'
+        + '请先确认 <code>refresh.py</code> 是否正常执行。';
+    } else if (gap == null) act = '尚未录入持仓。填入「总资产」与持仓后，这里会给出相对当前仓位的加减仓判断。';
     else if (gap > 5) act = '<b>建议加仓</b>：目标仓位 ' + pos.toFixed(0) + '%，当前约 ' + curPos.toFixed(0) + '%，缺口约 ' + gap.toFixed(0) + ' 个百分点。分 2–3 批执行，每批间隔至少一个交易日，不要一次性打满。';
     else if (gap < -5) act = '<b>建议减仓</b>：目标仓位 ' + pos.toFixed(0) + '%，当前约 ' + curPos.toFixed(0) + '%，需降低约 ' + Math.abs(gap).toFixed(0) + ' 个百分点。优先减「利率敏感 + 估值高 + 趋势转弱」的标的。';
     else act = '<b>维持现有仓位</b>：目标 ' + pos.toFixed(0) + '% 与当前约 ' + curPos.toFixed(0) + '% 接近，无需大动作，把精力放在个股筛选上。';
+
+    var partialNote = r.partial
+      ? '<p style="font-size:12.5px;color:var(--warn);margin-top:8px">'
+        + '<b>注意：本次有 ' + r.missing.length + ' / ' + r.total + ' 项信号缺失或已过期</b>，'
+        + '仓位建议的可信度相应下降。若缺失项超过一半，请把上方「市场温度分」仅当作参考，不要直接照着调仓。</p>'
+      : '';
 
     var riskNote = {
       conservative: '保守型：目标仓位已下调 10 个百分点，单票上限建议 10%。',
@@ -670,6 +943,7 @@ function marketSection() {
       + '<div class="pos"><div class="pos-bar"><i style="width:' + pos + '%"></i></div>'
       + '<div class="scale"><span>20% 防守</span><span>50% 均衡</span><span>85% 进攻</span></div></div>'
       + '<div class="callout ' + col + '" style="margin:14px 0 0">' + act + '</div>'
+      + partialNote
       + '<ul>' + r.reasons.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'
       + '<p style="font-size:12.5px;color:var(--text-2);margin-top:10px">' + riskNote
       + '　基准仓位 50%，每个信号 ±6 分对应 ±6 个百分点，上限 85%、下限 20%。规则透明，可自行核对。</p>'
@@ -1106,13 +1380,13 @@ function marketSection() {
     var holdings = LS.get('holdings', []);
 
     var h = '<div class="card"><h3 style="margin:0 0 12px;font-size:15px">风险偏好与资金</h3><div class="form">'
-      + '<div class="fld"><label>风险偏好</label><select id="d-risk" onchange="App.setRisk(this.value)">'
+      + '<div class="fld"><label for="d-risk">风险偏好</label><select id="d-risk" onchange="App.setRisk(this.value)">'
       + ['conservative:保守型（控回撤优先）', 'balanced:平衡型', 'aggressive:进取型（能承受大波动）'].map(function (o) {
         var p = o.split(':'); return '<option value="' + p[0] + '"' + (risk === p[0] ? ' selected' : '') + '>' + p[1] + '</option>';
       }).join('') + '</select></div>'
-      + '<div class="fld"><label>总资产（美元，用于算仓位）</label><input id="d-cap" type="number" value="' + esc(capital) + '" placeholder="如 100000" onchange="App.setCapital(this.value)"></div>'
-      + '<div class="fld"><label>止损幅度（%）</label><input id="d-sl" type="number" value="' + LS.get('stopLoss', 12) + '" onchange="App.setNum(\'stopLoss\',this.value)"></div>'
-      + '<div class="fld"><label>止盈幅度（%）</label><input id="d-tp" type="number" value="' + LS.get('takeProfit', 25) + '" onchange="App.setNum(\'takeProfit\',this.value)"></div>'
+      + '<div class="fld"><label for="d-cap">总资产（美元，用于算仓位）</label><input id="d-cap" type="number" value="' + esc(capital) + '" placeholder="如 100000" onchange="App.setCapital(this.value)"></div>'
+      + '<div class="fld"><label for="d-sl">止损幅度（%）</label><input id="d-sl" type="number" value="' + LS.get('stopLoss', 12) + '" onchange="App.setNum(\'stopLoss\',this.value)"></div>'
+      + '<div class="fld"><label for="d-tp">止盈幅度（%）</label><input id="d-tp" type="number" value="' + LS.get('takeProfit', 25) + '" onchange="App.setNum(\'takeProfit\',this.value)"></div>'
       + '</div>'
       + '<div style="font-size:12.5px;color:var(--text-2);margin-top:10px">'
       + '默认止损 12% / 止盈 25% 是中性设置。保守型建议止损 8–10%，进取型可放宽到 15–18%——但放宽止损必须同步降低仓位，否则单笔亏损会失控。</div></div>';
@@ -1213,6 +1487,36 @@ function marketSection() {
   var globe = null;
   var globeInitPending = false;
 
+  /* 动态注入 three.js（约167KB gzip）。原实现用 async 放在首屏，
+     虽不阻塞解析，但仍与 data/*.js 争抢同一段带宽，把①的渲染推迟。
+     改为地球真正进入视口时才加载 —— 那是用户滚到第8屏之后的事。 */
+  var THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+  function loadThree(cb) {
+    if (typeof window.THREE !== 'undefined') return cb(true);
+    var settled = false;
+    function finish(ok) { if (!settled) { settled = true; cb(ok); } }
+    function inject(src, onErr) {
+      var s = document.createElement('script');
+      s.async = true;
+      s.onload = function () { finish(typeof window.THREE !== 'undefined'); };
+      /* 注意：本地脚本加载失败时不能立刻 finish —— 否则下面 8 秒的
+         CDN 兜底分支永远走不到。先标记失败，等兜底。 */
+      s.onerror = function () { if (onErr) onErr(); };
+      s.src = src;
+      document.head.appendChild(s);
+      return s;
+    }
+    // 先试本地（离线可用）
+    inject('assets/vendor/three.min.js', function () { /* 失败则交给下面的定时兜底 */ });
+    setTimeout(function () {
+      if (settled) return;
+      if (typeof window.THREE !== 'undefined') return finish(true);
+      // 本地超时/失败 → 换 CDN 再给一次机会
+      inject(THREE_CDN, function () { finish(false); });
+      setTimeout(function () { finish(typeof window.THREE !== 'undefined'); }, 8000);
+    }, 8000);
+  }
+
   var TYPE_LABEL = { conflict: '冲突', talk: '会谈', policy: '政策', macro: '宏观' };
   var TYPE_HEX = { conflict: '#E08A8A', talk: '#8FB4D8', policy: '#BBA9D4', macro: '#DCA96B' };
 
@@ -1242,29 +1546,27 @@ function marketSection() {
       el.addEventListener('click', function () { showEvent(el.getAttribute('data-id')); });
     });
 
-    /* 地球：懒加载（进入视口才初始化），不阻塞首屏；THREE 未就绪时轮询等待 */
+    /* 地球：进入视口才加载 three.js 并初始化，不阻塞首屏 */
     if (!globeInitPending && !globe) {
       globeInitPending = true;
       var secW = $('world');
       function startGlobe() {
-        function build() {
-          globe = new window.Globe($('globe-box'), { onPick: function (id) { showEvent(id); } });
-          var mode = globe.init(items, follow);
-          $('globe-note').innerHTML = mode === true
-            ? '3D 地球已加载：拖拽旋转、滚轮或双指缩放、点击发光标记查看事件。点击右侧列表也可定位。'
-            : (mode === '2d'
-              ? '当前环境未启用 WebGL，已自动降级为 2D 平面地图，点击标记同样可查看事件。'
-              : '当前环境不支持画布渲染，地球无法显示；请通过右侧事件列表查看全部事件与影响分析。');
-          $('globe-tip').textContent = '点击发光标记查看事件';
-        }
-        if (typeof window.THREE !== 'undefined') { build(); return; }
-        $('globe-note') && ($('globe-note').textContent = '地球组件加载中…');
-        var tries = 0;
-        var iv = setInterval(function () {
-          tries++;
-          if (typeof window.THREE !== 'undefined') { clearInterval(iv); build(); }
-          else if (tries > 20) { clearInterval(iv); build(); } /* 超时 → 降级 2D */
-        }, 250);
+        loadThree(function (ok) {
+          function build() {
+            globe = new window.Globe($('globe-box'), { onPick: function (id) { showEvent(id); } });
+            var mode = globe.init(items, follow);
+            $('globe-note').innerHTML = mode === true
+              ? '3D 地球已加载：拖拽旋转、滚轮或双指缩放、点击发光标记查看事件。点击右侧列表也可定位。'
+              : (mode === '2d'
+                ? '当前环境未启用 WebGL，已自动降级为 2D 平面地图，点击标记同样可查看事件。'
+                : '当前环境不支持画布渲染，地球无法显示；请通过右侧事件列表查看全部事件与影响分析。');
+            $('globe-tip').textContent = '点击发光标记查看事件';
+          }
+          if (ok && typeof window.THREE !== 'undefined') { build(); return; }
+          // three 加载失败：globe.js 自带 2D 降级路径，直接尝试
+          $('globe-note') && ($('globe-note').textContent = '3D 组件加载中…');
+          build();
+        });
       }
       if (window.IntersectionObserver) {
         var io = new IntersectionObserver(function (es) {
@@ -1274,14 +1576,19 @@ function marketSection() {
       } else { startGlobe(); }
     }
 
-    /* 默认展示第一条高影响事件详情 */
+    /* 默认展示第一条高影响事件详情，但不滚动（首屏必须留在 ①市场总览） */
     if (!$('evt-detail').innerHTML) {
       var first = items.slice().sort(function (a, b) { return b.level - a.level; })[0];
-      if (first) showEvent(first.id);
+      if (first) showEvent(first.id, { scroll: false });
     }
   }
 
-  function showEvent(id) {
+  /* opts.scroll: 仅在「用户主动点击/地球拾取」时滚动到详情。
+     首屏默认展示第一条高影响事件的详情，但绝不滚动——否则页面一打开
+     就被拽到最底部的「⑧世界局势」，用户根本看不到 ①市场总览，
+     与「首屏优先渲染①」的设计承诺相反。 */
+  function showEvent(id, opts) {
+    opts = opts || {};
     var e = (EV.items || []).filter(function (x) { return x.id === id; })[0];
     if (!e) return;
     if (globe && globe.focus) globe.focus(e.lat, e.lon);
@@ -1326,7 +1633,7 @@ function marketSection() {
     }).join('　·　') + '</div></div>';
 
     $('evt-detail').innerHTML = h;
-    if ($('evt-detail').scrollIntoView) {
+    if (opts.scroll !== false && $('evt-detail').scrollIntoView) {
       try { $('evt-detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
     }
   }
@@ -1477,6 +1784,7 @@ function marketSection() {
     if (!sec || sec.querySelector('.sec-body')) return;
     var body = document.createElement('div');
     body.className = 'sec-body';
+    body.id = 'sec-body-' + id;
     Array.prototype.slice.call(sec.children).forEach(function (k) {
       if (k.classList && k.classList.contains('sec-hd')) return;
       body.appendChild(k);
@@ -1487,9 +1795,13 @@ function marketSection() {
     var btn = document.createElement('button');
     btn.className = 'sec-toggle';
     btn.textContent = '收起';
+    /* aria-expanded/aria-controls：原来只改文字，读屏不知道它控制什么、当前是收还是展 */
+    btn.setAttribute('aria-expanded', 'true');
+    btn.setAttribute('aria-controls', body.id);
     btn.onclick = function () {
       var c = body.classList.toggle('collapsed');
       btn.textContent = c ? '展开' : '收起';
+      btn.setAttribute('aria-expanded', String(!c));
     };
     hd.appendChild(btn);
   }
@@ -1498,16 +1810,29 @@ function marketSection() {
   function navSpy() {
     var links = Array.prototype.slice.call(document.querySelectorAll('.nav-in a'));
     var secs = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+    function activate(i) {
+      if (i < 0) return;
+      links.forEach(function (a, k) {
+        a.classList.toggle('on', k === i);
+        /* aria-current 让读屏知道「当前在哪个板块」 */
+        if (k === i) a.setAttribute('aria-current', 'true');
+        else a.removeAttribute('aria-current');
+      });
+    }
     if (window.IntersectionObserver) {
       var io = new IntersectionObserver(function (entries) {
+        /* 一帧内可能有多个 section 同时 intersecting。原实现按entries 顺序
+           逐个 add('on')，最终高亮取决于回调顺序而非文档顺序，会错位。
+           改为取「已进入视口且最靠上」的那个。 */
+        var best = -1, bestTop = Infinity;
         entries.forEach(function (en) {
           if (!en.isIntersecting) return;
           var i = secs.indexOf(en.target);
-          if (i >= 0) {
-            links.forEach(function (a) { a.classList.remove('on'); });
-            links[i].classList.add('on');
-          }
+          if (i < 0) return;
+          var top = en.boundingClientRect ? en.boundingClientRect.top : 0;
+          if (top < bestTop) { bestTop = top; best = i; }
         });
+        if (best >= 0) activate(best);
       }, { rootMargin: '-60px 0px -70% 0px', threshold: 0 });
       secs.forEach(function (s) { if (s) io.observe(s); });
     }
@@ -1518,9 +1843,22 @@ function marketSection() {
     if (!M.asOf) {
       document.querySelector('.wrap').insertAdjacentHTML('afterbegin',
         '<div class="callout risk">未读到行情数据。请在项目目录运行 <code>python3 refresh.py</code> 生成 data/market.js。</div>');
+      /* 铁律：没有行情数据就停在这里。原实现只插入提示却继续往下跑，
+         于是 scoreMarket 返回全 0、adviceBlock 照样渲染「建议仓位 50% · 均衡」，
+         等于在数据完全缺失时给出一个看起来精确的仓位。 */
+      return;
     }
     initTheme();
     initView();
+    /* 无痕/隐私模式检测：明确告知用户「改动不会被保存」，
+       否则自选、持仓、验证点标记都会在刷新后静默消失 */
+    if (!LS.probe()) {
+      document.querySelector('.wrap').insertAdjacentHTML('afterbegin',
+        '<div class="callout risk" style="margin:0 0 16px">'
+        + '<b>当前浏览器无法保存数据（无痕模式或禁用了本地存储）。</b>'
+        + '你仍可正常浏览全部内容，但自选股、持仓、验证点标记与主题偏好在刷新后不会保留。'
+        + '如需长期使用，请在普通窗口打开。</div>');
+    }
     /* 首屏优先渲染「市场总览」（①），让用户立刻有内容可读 */
     snapshotSection();
     heroSection();
@@ -1542,6 +1880,21 @@ function marketSection() {
       setupNavFade();
       navSpy();
       $('modal').addEventListener('click', function (e) { if (e.target === this) App.closeModal(); });
+      /* 页面切到后台时释放地球的 GPU 资源，回来再恢复。
+         dispose 之后必须能重建，否则用户切一次标签页地球就永久静止了。 */
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+          if (globe && globe.dispose) globe.dispose();
+        } else {
+          var box = $('globe-box');
+          if (box && (!globe || !globe.ok)) {
+            // 已被释放/降级 → 重新构建一次
+            globe = null; globeInitPending = false;
+            if (box.innerHTML) box.innerHTML = '';
+            worldSection();
+          }
+        }
+      });
     });
   }
 
