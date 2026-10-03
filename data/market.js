@@ -1,6 +1,6 @@
 // 自动生成，请勿手改。运行 `python3 refresh.py` 重新抓取。
 window.MARKET_DATA = {
- "asOf": "2026-10-04 04:30:44",
+ "asOf": "2026-10-04 07:31:15",
  "indices": [
   {
    "key": "usNDX",
