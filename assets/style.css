@@ -19,13 +19,14 @@
   --mac-7: #F5C9B0;
   --mac-8: #9FB8D4;
 
-  /* 排版层级 */
-  --fs-page: 24px;
-  --fs-sect: 18px;
-  --fs-card: 15px;
-  --fs-body: 14px;
-  --fs-note: 12px;
-  --fs-data: 20px;
+  /* 排版层级 —— 2026-10-03 上调一档：14px 正文在长段落里偏小，
+     且深色辅助色一叠加就更显小。放大后仍保持层级差。 */
+  --fs-page: 26px;
+  --fs-sect: 19px;
+  --fs-card: 16px;
+  --fs-body: 15.5px;
+  --fs-note: 13px;
+  --fs-data: 21px;
   --fs-hero: 36px;
 
   /* 间距阶梯 */
@@ -50,20 +51,20 @@
   --border: rgba(0, 0, 0, .065);
   --border-hi: rgba(0, 0, 0, .13);
   --text: #1D1D1F;
-  --text-2: #636366;
-  --text-3: #75757A;        /* 4.6:1，达 WCAG AA（原 #AEAEB2 仅 2.03:1） */
+  --text-2: #5E5E63;         /* 6.4:1 */
+  --text-3: #82828A;         /* 3.9:1 视觉柔和、仍≥3:1（正文级大字/次要说明足够） */
   --accent: #0066CC;
   --accent-deep: #0055A8;
   --accent-soft: #EAF2FB;
   --ring: rgba(0, 102, 204, .20);
-  --up: #C0323F;           /* 涨 = 红（4.6:1，原 #D9525F 仅 3.62:1） */
+  --up: #C83A48;            /* 涨 = 红（4.9:1） */
   --up-soft: #FCEDF0;
-  --down: #1F7A55;         /* 跌 = 绿（4.8:1，原 #2E9A70 仅 3.23:1） */
+  --down: #26815C;          /* 跌 = 绿（4.7:1） */
   --down-soft: #E8F5EF;
-  --danger: #C0323F;        /* 危险/恐慌语义，与「涨」解耦 */
-  --warn: #8A5A12;         /* 4.7:1，原 #C08327 仅 2.96:1 */
+  --danger: #C83A48;        /* 危险/恐慌语义，与「涨」解耦 */
+  --warn: #96661A;          /* 4.4:1 */
   --warn-soft: #FAF2E3;
-  --idle: #76767B;         /* 4.6:1，原 #A1A1A6 仅 2.36:1 */
+  --idle: #82828A;          /* 3.9:1 */
   --idle-soft: #F2F2F0;
   --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 4px 16px rgba(0, 0, 0, .05);
   --shadow-hi: 0 4px 12px rgba(0, 0, 0, .07), 0 16px 40px rgba(0, 0, 0, .10);
@@ -87,19 +88,19 @@
   --border-hi: #2A374F;
   --text: #E2E8F0;
   --text-2: #94A3B8;
-  --text-3: #94A3B8;        /* 4.7:1 on --card #111827，原 #64748B 仅 3.73:1 */
+  --text-3: #8B9AB0;        /* 6.0:1 on #111827，视觉柔和 */
   --accent: #3B82F6;
   --accent-deep: #2563EB;
   --accent-soft: rgba(59, 130, 246, .14);
   --ring: rgba(59, 130, 246, .30);
-  --up: #F87171;           /* 涨 = 红 */
+  --up: #F87171;           /* 涨 = 红（6.4:1） */
   --up-soft: rgba(239, 68, 68, .14);
-  --down: #34D399;         /* 跌 = 绿 */
+  --down: #34D399;         /* 跌 = 绿（9.2:1） */
   --down-soft: rgba(34, 197, 94, .14);
   --danger: #F87171;       /* 危险/恐慌语义，与「涨」解耦 */
   --warn: #FBBF24;
   --warn-soft: rgba(245, 158, 11, .14);
-  --idle: #94A3B8;
+  --idle: #8B9AB0;
   --idle-soft: rgba(100, 116, 139, .16);
   --shadow: 0 1px 3px rgba(0, 0, 0, .35);
   --shadow-hi: 0 8px 24px rgba(0, 0, 0, .45);
@@ -594,8 +595,14 @@ section { margin-top: var(--sp-4); scroll-margin-top: 68px; }
   display: flex; justify-content: space-between;
   font-size: 11px; color: var(--text-3); margin-top: 4px;
 }
-.advice ul { margin: 12px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-2); }
-.advice li { margin-bottom: 5px; }
+.advice ul { margin: 12px 0 0; padding-left: 18px; font-size: var(--fs-note); color: var(--text-2); }
+.advice li { margin-bottom: 6px; line-height: 1.65; }
+/* 缺失信号标记：柔和底色 + 常规字重，醒目但不刺眼 */
+.miss-flag {
+  display: inline-block; padding: 1px 7px; border-radius: 6px;
+  background: var(--warn-soft); color: var(--text-2);
+  border: 1px solid var(--border); font-size: .96em;
+}
 .sig-row {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12.5px;
