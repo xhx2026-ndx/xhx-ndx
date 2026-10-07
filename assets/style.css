@@ -53,17 +53,17 @@
   --text: #1D1D1F;
   --text-2: #5E5E63;         /* 6.4:1 */
   --text-3: #82828A;         /* 3.9:1 视觉柔和、仍≥3:1（正文级大字/次要说明足够） */
-  --accent: #0066CC;
-  --accent-deep: #0055A8;
-  --accent-soft: #EAF2FB;
+  --accent: #3D7FC4;        /* 蓝色减淡（原 #0066CC 过重），兼顾观感与 4:1 左右可读性 */
+  --accent-deep: #2F6FB0;
+  --accent-soft: #EDF4FC;
   --ring: rgba(0, 102, 204, .20);
   --up: #C83A48;            /* 涨 = 红（4.9:1） */
   --up-soft: #FCEDF0;
   --down: #26815C;          /* 跌 = 绿（4.7:1） */
   --down-soft: #E8F5EF;
   --danger: #C83A48;        /* 危险/恐慌语义，与「涨」解耦 */
-  --warn: #96661A;          /* 4.4:1 */
-  --warn-soft: #FAF2E3;
+  --warn: #8A6D42;         /* 减淡但守住 3:1（在 warn-soft 底上4.1:1），不再用 #A88A5C 的 2.99:1 */
+  --warn-soft: #F8F5EE;
   --idle: #82828A;          /* 3.9:1 */
   --idle-soft: #F2F2F0;
   --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 4px 16px rgba(0, 0, 0, .05);
@@ -89,17 +89,17 @@
   --text: #E2E8F0;
   --text-2: #94A3B8;
   --text-3: #8B9AB0;        /* 6.0:1 on #111827，视觉柔和 */
-  --accent: #3B82F6;
-  --accent-deep: #2563EB;
-  --accent-soft: rgba(59, 130, 246, .14);
-  --ring: rgba(59, 130, 246, .30);
+  --accent: #5C9FE0;         /* 与浅色主题同步减淡 */
+  --accent-deep: #7FB4E8;
+  --accent-soft: rgba(92, 159, 224, .16);
+  --ring: rgba(92, 159, 224, .30);
   --up: #F87171;           /* 涨 = 红（6.4:1） */
   --up-soft: rgba(239, 68, 68, .14);
   --down: #34D399;         /* 跌 = 绿（9.2:1） */
   --down-soft: rgba(34, 197, 94, .14);
   --danger: #F87171;       /* 危险/恐慌语义，与「涨」解耦 */
-  --warn: #FBBF24;
-  --warn-soft: rgba(245, 158, 11, .14);
+  --warn: #E0B26A;         /* 与浅色主题同步减淡 */
+  --warn-soft: rgba(224, 178, 106, .14);
   --idle: #8B9AB0;
   --idle-soft: rgba(100, 116, 139, .16);
   --shadow: 0 1px 3px rgba(0, 0, 0, .35);
@@ -645,9 +645,11 @@ section { margin-top: var(--sp-4); scroll-margin-top: 68px; }
   border-radius: 6px; padding: 2px 7px; height: fit-content; margin-top: 3px;
   font-weight: 600; letter-spacing: .02em;
 }
-.thing .row.b b { background: var(--accent); color: #fff; }
-.thing .row.c b { background: var(--warn); color: #1A1205; }
-.thing .row.v b { background: var(--text); color: var(--bg); }
+/* 行标签：淡色底 + 深色字（原先是实心蓝/棕底色块，视觉重量过重，
+   一屏出现四五个时压迫感明显）。仍能靠色彩区分语义，但不再抢正文。 */
+.thing .row.b b { background: var(--accent-soft); color: var(--accent-deep); }
+.thing .row.c b { background: var(--warn-soft); color: var(--warn); }
+.thing .row.v b { background: var(--idle-soft); color: var(--text-2); }
 .thing .row p { margin: 0; color: var(--text-2); line-height: 1.75; }
 .thing .row.v p {
   background: var(--bg-2); border: 1px dashed var(--border-hi);
