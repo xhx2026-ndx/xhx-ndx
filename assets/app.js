@@ -719,7 +719,7 @@ function marketSection() {
 
     if (csi) {
       s += '<div class="card"><div class="nm" style="font-size:13.5px;font-weight:600">' + esc(csi.name) + '</div>'
-        + '<div class="ds" style="font-size:11.5px;color:var(--text-2)">' + esc(csi.desc) + '</div>'
+        + '<div class="ds" style="font-size:12.5px;color:var(--text-2)">' + esc(csi.desc) + '</div>'
         + '<div class="px" style="font-size:24px;font-weight:700;margin-top:6px">' + fmt(csi.value) + '</div>'
         + '<div class="chg ' + cls(csi.pct) + '" style="font-weight:600">' + sign(csi.chg) + '　' + pct(csi.pct) + '</div>'
         + svgSpark((M.series || {}).sh000922, csi.pct >= 0)
@@ -836,7 +836,7 @@ function marketSection() {
      等于把数据缺失渲染成最强的看多信号。 */
   function vixScale(v) {
     if (v == null || isNaN(v)) {
-      return '<div class="lbl" style="color:var(--text-3);font-size:11.5px">无读数，刻度不显示</div>';
+      return '<div class="lbl" style="color:var(--text-3);font-size:12.5px">无读数，刻度不显示</div>';
     }
     var p = Math.max(0, Math.min(100, v / 30 * 100));
     return '<div class="scalebar"><div class="track">'
@@ -928,10 +928,12 @@ function marketSection() {
       else reasons.push('布伦特原油 ' + fmt(oil.value) + ' 美元（&lt;100）→ 0');
     } else { missing.push('布伦特原油'); }
 
-    /* 缺失信号必须显式列出——这是「不静默」的关键 */
+    /* 缺失信号必须显式列出——这是「不静默」的关键。
+       用柔和的 chip 底色而不是纯橙色文字：橙色整段加粗在正文里太扎眼，
+       底色+常规字重同样醒目但不刺眼。 */
     if (missing.length) {
       reasons = reasons.concat(missing.map(function (k) {
-        return '<b style="color:var(--warn)">[' + k + ' 数据缺失，本次不计分]</b>';
+        return '<span class="miss-flag">' + esc(k) + ' 数据缺失，本次不计分</span>';
       }));
     }
     return {
@@ -1099,7 +1101,7 @@ function marketSection() {
     var h = '<div class="card"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
       + '<h3 style="margin:0;font-size:15px;font-weight:650">验证点追踪表</h3>'
       + '<span class="pill grey">已标记 ' + done + ' / ' + rows.length + '</span>'
-      + '<span style="font-size:12px;color:var(--text-3)">'
+      + '<span style="font-size:12.5px;color:var(--text-3)">'
       + '判断写出来就必须能被证伪——三个月后回看这张表，比任何观点都值钱</span></div>'
       + '<div class="tbl-scroll"><table class="tbl vtbl">'
       + '<thead><tr><th style="width:84px">状态</th><th style="width:110px">来源</th><th>验证点（达到什么数字算对 / 算错）</th></tr></thead><tbody>';
@@ -1114,12 +1116,12 @@ function marketSection() {
         + '<option value="ok"' + (m === 'ok' ? ' selected' : '') + '>已验证</option>'
         + '<option value="no"' + (m === 'no' ? ' selected' : '') + '>被证伪</option>'
         + '</select></td>'
-        + '<td class="src-td" style="font-size:12px;color:var(--text-3)">' + esc(r.src) + '</td>'
+        + '<td class="src-td" style="font-size:12.5px;color:var(--text-3)">' + esc(r.src) + '</td>'
         + '<td><b style="font-size:13px">' + esc(r.title) + '</b>'
         + '<div style="font-size:12.5px;color:var(--text-2);margin-top:4px">' + r.v + '</div></td></tr>';
     });
     h += '</tbody></table></div>'
-      + '<div style="font-size:11.5px;color:var(--text-3);margin-top:10px">'
+      + '<div style="font-size:12.5px;color:var(--text-3);margin-top:10px">'
       + '标记保存在本机浏览器，刷新不丢。建议每周围坐一次，把「被证伪」的那几条单独复盘——'
       + '错在哪里比对了什么更重要。</div></div>';
     $('vtrack').innerHTML = h;
@@ -1133,7 +1135,7 @@ function marketSection() {
     if (!list.length) {
       $('hot').innerHTML = '<div class="card"><div class="empty">'
         + '<b>热度榜暂无数据</b>运行 <code>python3 refresh.py</code> 重新抓取后即可显示。'
-        + '<br><span style="font-size:12px">该接口偶发失败，脚本已内置重试与 curl 兜底。</span></div></div>';
+        + '<br><span style="font-size:12.5px">该接口偶发失败，脚本已内置重试与 curl 兜底。</span></div></div>';
       return;
     }
     var mine = getStocks().map(function (s) { return s.ticker; });
@@ -1147,7 +1149,7 @@ function marketSection() {
       + '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
       + '<h3 style="margin:0;font-size:15px;font-weight:650">资金关注度榜 · 成交额 TOP10</h3>'
       + '<span class="pill grey">' + (M.asOf || '').slice(0, 10) + '</span>'
-      + '<span style="font-size:12px;color:var(--text-3)">剔除 ETF · 排名范围为 60 只主流美股与中概股池</span>'
+      + '<span style="font-size:12.5px;color:var(--text-3)">剔除 ETF · 排名范围为 60 只主流美股与中概股池</span>'
       + '</div><ul class="hot">';
 
     list.forEach(function (x, i) {
@@ -1300,13 +1302,13 @@ function marketSection() {
 
       card += '<div class="kv">'
         + '<div><div class="k">最新动态</div><div class="v">' + sign(s.chg) + ' / ' + pct(s.pct) + '</div>'
-        + '<div style="font-size:11.5px;color:var(--text-2)">成交额 ' + (s.amount ? (s.amount / 1e8).toFixed(1) + ' 亿美元' : '—') + '</div></div>'
+        + '<div style="font-size:12.5px;color:var(--text-2)">成交额 ' + (s.amount ? (s.amount / 1e8).toFixed(1) + ' 亿美元' : '—') + '</div></div>'
         + '<div><div class="k">技术走势</div><div class="v">' + esc(t.trend || '—') + '</div>'
-        + '<div style="font-size:11.5px;color:var(--text-2)">RSI ' + (t.rsi14 == null ? '—' : t.rsi14) + '　MA20 ' + fmt(t.ma20) + '</div></div>'
+        + '<div style="font-size:12.5px;color:var(--text-2)">RSI ' + (t.rsi14 == null ? '—' : t.rsi14) + '　MA20 ' + fmt(t.ma20) + '</div></div>'
         + '<div><div class="k">资金面</div><div class="v">' + (t.volRatio5v20 == null ? '—' : t.volRatio5v20 + '×') + '</div>'
-        + '<div style="font-size:11.5px;color:var(--text-2)">5日量 / 20日量</div></div>'
+        + '<div style="font-size:12.5px;color:var(--text-2)">5日量 / 20日量</div></div>'
         + '<div><div class="k">估值</div><div class="v">PE ' + (s.pe == null ? '—' : fmt(s.pe)) + '</div>'
-        + '<div style="font-size:11.5px;color:var(--text-2)">市值 ' + yi(s.mktcap) + '</div></div>'
+        + '<div style="font-size:12.5px;color:var(--text-2)">市值 ' + yi(s.mktcap) + '</div></div>'
         + '</div>';
 
       card += '<div class="kv" style="margin-top:10px">'
@@ -1322,7 +1324,7 @@ function marketSection() {
         card += '<div class="stk-basis"><b>基本面 · 这家公司靠什么赚钱</b>'
           + '<p>' + esc(bs.basis) + '</p>'
           + '<div style="margin-top:7px">利率敏感度：<span class="pill ' + rc + '">' + esc(bs.rate) + '</span>'
-          + '<span style="font-size:12px;color:var(--text-2);margin-left:8px">'
+          + '<span style="font-size:12.5px;color:var(--text-2);margin-left:8px">'
           + esc(RATE_NOTE[bs.rate] || '') + '</span></div></div>';
       }
 
@@ -1453,7 +1455,7 @@ function marketSection() {
       + '<div style="font-size:12.5px;color:var(--text-2);margin-bottom:10px">成本价用于计算止损止盈；有现价的自选股会自动算浮盈。</div>';
 
     if (holdings.length) {
-      h += '<div class="pos-row" style="font-size:12px;color:var(--text-2);border-bottom:1px solid var(--border)">'
+      h += '<div class="pos-row" style="font-size:12.5px;color:var(--text-2);border-bottom:1px solid var(--border)">'
         + '<div>代码</div><div>成本</div><div>股数</div><div class="hide">现价</div><div class="hide">浮动盈亏</div><div></div></div>';
       holdings.forEach(function (p, i) {
         var live = (M.stocks || []).filter(function (x) { return x.ticker === p.ticker; })[0];
@@ -1663,7 +1665,7 @@ function marketSection() {
       + '<button class="mini ' + (follow[e.id] ? '' : 'ghost') + '" style="margin-left:auto" onclick="App.toggleFollow(\'' + esc(e.id) + '\')">'
       + (follow[e.id] ? '★ 取消关注' : '☆ 关注此事件') + '</button></div>'
       + '<h3 style="margin:12px 0 4px;font-size:17px">' + esc(e.title) + '</h3>'
-      + '<div style="font-size:12px;color:var(--text-2)">' + esc(e.date) + '</div>';
+      + '<div style="font-size:12.5px;color:var(--text-2)">' + esc(e.date) + '</div>';
 
     h += '<h4 style="margin:16px 0 6px;font-size:13.5px;color:var(--accent)">发生了什么</h4><p>' + esc(e.summary) + '</p>';
     h += '<h4 style="margin:16px 0 6px;font-size:13.5px;color:var(--accent)">为什么重要</h4><p>' + esc(e.why) + '</p>';
