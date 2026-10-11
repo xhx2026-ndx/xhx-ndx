@@ -1,6 +1,6 @@
 // 自动生成，请勿手改。运行 `python3 refresh.py` 重新抓取。
 window.MARKET_DATA = {
- "asOf": "2026-10-11 20:30:55",
+ "asOf": "2026-10-12 04:30:48",
  "indices": [
   {
    "key": "usNDX",
@@ -291,18 +291,18 @@ window.MARKET_DATA = {
    "key": "btc_btcbtcusd",
    "name": "比特币 BTC",
    "value": 82988.36,
-   "high": 83258.65,
+   "high": 84199.0,
    "low": 82804.65,
-   "date": "2026-10-11",
+   "date": "2026-10-12",
    "note": "数据源未提供 24h 基准价，故不计算涨跌幅"
   },
   {
    "key": "btc_btcethusd",
    "name": "以太坊 ETH",
    "value": 2506.52,
-   "high": 2513.59,
+   "high": 2555.22,
    "low": 2497.85,
-   "date": "2026-10-11",
+   "date": "2026-10-12",
    "note": "数据源未提供 24h 基准价，故不计算涨跌幅"
   }
  ],
@@ -314,7 +314,7 @@ window.MARKET_DATA = {
   "pct": 0.1,
   "high": 102.3369,
   "low": 101.9194,
-  "time": "05:10:09",
+  "time": "04:59:00",
   "date": "2026-10-10"
  },
  "stocks": [
