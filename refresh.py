@@ -340,6 +340,11 @@ DEFAULT_WATCH = [
     ("META", "Meta", "105.META"),
     ("TSLA", "特斯拉", "105.TSLA"),
     ("AVGO", "博通", "105.AVGO"),
+    # 2026-10-20 新增：用户明确要求跟踪「纳指 / 半导体 / SQQQ」的买入与止盈。
+    # SOXX = 费城半导体 ETF（半导体板块的温度计）；SQQQ = 3 倍做空纳指100（做空/对冲工具）。
+    # 新浪无这两个的日K，kline() 会自动走东财备胎（105.SOXX / 105.SQQQ），实测可取。
+    ("SOXX", "费城半导体ETF", "105.SOXX"),
+    ("SQQQ", "3倍做空纳指100", "105.SQQQ"),
 ]
 
 INDEX_DEFS = [
@@ -405,7 +410,9 @@ def build():
             "chg": fnum(f[31]), "pct": fnum(f[32]),
             "high": fnum(f[33]), "low": fnum(f[34]),
             "high52": fnum(f[48]), "low52": fnum(f[49]),
-            "time": f[30], "currency": f[35],
+            # time 字段是美东墙钟（腾讯接口口径），不是北京时间。
+            # 显式标注 tz，前端据此换算，避免被当成本地时间解析。
+            "time": f[30], "tz": "America/New_York", "currency": f[35],
         })
 
     csi = q.get("sh000922")
@@ -416,7 +423,8 @@ def build():
             "value": fnum(csi[3]), "prev": fnum(csi[4]), "open": fnum(csi[5]),
             "chg": fnum(csi[31]), "pct": fnum(csi[32]),
             "high": fnum(csi[33]), "low": fnum(csi[34]),
-            "time": csi[30],
+            # A股快照是北京时间
+            "time": csi[30], "tz": "Asia/Shanghai",
         }
         h52, l52 = fnum(csi[48]) if len(csi) > 48 else None, fnum(csi[49]) if len(csi) > 49 else None
         if h52 and l52 and h52 > l52:  # A股指数快照的这两个位不是52周高低，需过滤
@@ -526,7 +534,7 @@ def build():
             "pe": fnum(f[39]), "eps": fnum(f[47]),
             "high52": fnum(f[48]), "low52": fnum(f[49]),
             "mktcap": fnum(f[45]),  # 亿美元
-            "time": f[30],
+            "time": f[30], "tz": "America/New_York",
         }
         t = tech_from_kline(rows)
         if t:
