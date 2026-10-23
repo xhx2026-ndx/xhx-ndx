@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QQQ / SPY 盘前作战卡 2026.10.23 周五</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#071120;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;color:#EAF0F6}
+.card{max-width:680px;margin:0 auto;background:linear-gradient(180deg,#0B1B2E 0%,#0A1826 100%);padding:0 0 18px}
+.hd{padding:26px 20px 20px;background:radial-gradient(120% 100% at 50% 0%,#16304D 0%,#0B1B2E 70%);border-bottom:1px solid #23384F}
+.hd .brand{display:flex;justify-content:space-between;font-size:11px;color:#C9A227;letter-spacing:2px;margin-bottom:14px}
+.hd .brand .r{color:#7E93A8;letter-spacing:1px}
+.hd h1{font-size:44px;font-weight:900;color:#F5F8FB;letter-spacing:1px;line-height:1.05}
+.hd h1 span{color:#C9A227}
+.hd .sub{font-size:22px;font-weight:800;color:#F5F8FB;margin-top:2px;letter-spacing:6px}
+.hd .meta{margin-top:12px;font-size:12px;color:#9FB4C6}
+.hd .meta b{color:#E3C566;font-weight:700}
+.hd .note{margin-top:6px;font-size:11px;color:#6E8296;line-height:1.6}
+.sec{padding:16px 20px 4px}
+.sec .st{display:flex;align-items:center;margin-bottom:10px}
+.sec .no{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#D4AF37,#A8842C);color:#0B1B2E;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;margin-right:10px}
+.sec .tt{font-size:17px;font-weight:800;color:#F5F8FB;letter-spacing:1px}
+.sec .en{font-size:10px;color:#7E93A8;letter-spacing:2px;margin-left:8px;margin-top:3px}
+.tag{display:inline-block;background:linear-gradient(90deg,#B03A2E,#8E2B21);color:#fff;font-size:15px;font-weight:800;padding:6px 14px;border-radius:6px;margin-bottom:10px;letter-spacing:1px}
+.kv{font-size:13.5px;line-height:1.85;color:#C6D4E0}
+.kv b{color:#F5F8FB}
+.tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.tile{background:#10263F;border:1px solid #1E3A55;border-radius:10px;padding:10px 10px 9px}
+.tile .l{font-size:11px;color:#8FA6B8;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v{font-size:19px;font-weight:800;color:#F5F8FB}
+.tile .p{font-size:12px;font-weight:700;margin-top:2px}
+.tile .s{font-size:10px;color:#6E8296;margin-top:4px;line-height:1.5}
+.up{color:#FF6B5E}.dn{color:#2ED3A0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel{background:#10263F;border:1px solid #1E3A55;border-radius:12px;padding:12px}
+.panel .tk{font-size:20px;font-weight:900;color:#F5F8FB}
+.panel .px{font-size:26px;font-weight:900;margin-top:2px}
+.panel .hl{font-size:11px;color:#8FA6B8;margin-top:4px}
+.lv{display:flex;border-top:1px dashed #24405C;padding:6px 0;font-size:12px;align-items:baseline}
+.lv .k{width:64px;color:#8FA6B8;flex:none}
+.lv .val{color:#F5F8FB;font-weight:700;letter-spacing:.3px}
+.lv.gold .k{color:#D4AF37}
+.lv.blue .k{color:#6FB4E8}
+.sc{margin-top:8px}
+.sc .row{display:flex;align-items:flex-start;padding:6px 0;border-top:1px solid #1B3B50;font-size:12px;line-height:1.6}
+.sc .row .lb{flex:none;width:52px;font-weight:800;display:flex;align-items:center}
+.sc .row .tx{color:#C6D4E0}
+.sc .b .lb{color:#2ED3A0}.sc .r .lb{color:#FF6B5E}.sc .c .lb{color:#E8C766}
+.sc .ar{font-size:13px;margin-right:4px}
+.obs{display:flex;padding:9px 0;border-bottom:1px dashed #24405C}
+.obs:last-child{border-bottom:none}
+.obs .n{flex:none;width:22px;height:22px;border-radius:50%;border:1px solid #C9A227;color:#E3C566;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-right:10px;margin-top:1px}
+.obs .t{font-size:13.5px;font-weight:800;color:#F5F8FB}
+.obs .d{font-size:12px;color:#9FB4C6;line-height:1.7;margin-top:2px}
+.disc{background:#0E2135;border:1px solid #24405C;border-radius:10px;padding:12px 14px}
+.disc .p1{font-size:13px;color:#C6D4E0;line-height:1.8}
+.disc .nt{margin-top:8px;font-size:12px;color:#E8C766;font-weight:700}
+.banner{margin:14px 20px 0;background:linear-gradient(90deg,#A8842C,#D4AF37,#A8842C);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.banner .big{font-size:19px;font-weight:900;color:#0B1B2E;letter-spacing:1px}
+.banner .side{font-size:11px;color:#3A2E10;font-weight:800;text-align:right;line-height:1.7;letter-spacing:2px}
+.foot-note{text-align:center;font-size:10.5px;color:#5E7185;margin-top:10px;letter-spacing:1px}
+.gen{text-align:center;font-size:10px;color:#46586A;margin-top:4px}
+</style></head>
+<body><div class="card">
+<div class="hd">
+  <div class="brand"><div>美股交易作战站</div><div class="r">PLAN · ANALYZE · EXECUTE</div></div>
+  <h1>QQQ <span>/</span> SPY</h1>
+  <div class="sub">盘前作战卡</div>
+  <div class="meta"><b>2026.10.23 周五</b> ｜ 美东盘中 10:01 EDT</div>
+  <div class="note">行情价格为上一交易日（10/22）美股常规交易时段收盘/高低点（QQQ、SPY 按日K现算）；利率与商品为 10/22 尾盘/结算口径；VIX 与美元指数为盘前快照（market.js asOf 2026-10-23 20:31:08）。不构成投资建议。</div>
+</div>
+
+<div class="sec"><div class="st"><div class="no">01</div><div class="tt">核心判断</div><div class="en">KEY VIEW</div></div>
+  <div class="tag">偏空防守｜急跌后观察修复</div>
+  <div class="kv">股市在换板块，债市在避险。半导体一天跌6.79%把纳指砸到9月17日来最低，同一天油价涨4%、10年期美债却跌破5%——市场定价的是风险，不是通胀。</div>
+</div>
+
+<div class="sec"><div class="st"><div class="no">02</div><div class="tt">市场环境</div><div class="en">MARKET BACKDROP</div></div>
+  <div class="tiles"><div class="tile"><div class="l">纳指100 NDX</div><div class="v">28958.69</div><div class="p dn">-2.90%</div><div class="s">10/22 收盘</div></div><div class="tile"><div class="l">标普500 SPX</div><div class="v">7663.43</div><div class="p dn">-1.21%</div><div class="s">10/22 收盘</div></div><div class="tile"><div class="l">SOXX 费城半导体</div><div class="v">475.69</div><div class="p dn">-6.79%</div><div class="s">10/22 收盘 · RSI 12.8</div></div><div class="tile"><div class="l">10Y 美债收益率</div><div class="v">4.9530%</div><div class="p "></div><div class="s">2026-10-22 纽约尾盘（−16.60bp）</div></div><div class="tile"><div class="l">布伦特原油</div><div class="v">113.17</div><div class="p up">+4.00%</div><div class="s">2026-10-22 结算</div></div><div class="tile"><div class="l">VIX / DXY</div><div class="v">19.80｜101.76</div><div class="p "></div><div class="s">盘前读数 · VIX +4.10% / DXY +0.14%</div></div></div>
+</div>
+
+<div class="sec"><div class="st"><div class="no">03</div><div class="tt">关键价位与交易剧本</div><div class="en">KEY LEVELS &amp; SCENARIOS</div></div>
+  <div class="cols"><div class="panel"><div class="tk">QQQ</div><div class="px dn">704.47<span style="font-size:14px"> -2.86%</span></div><div class="hl">10/22 收盘 · 当日高 715.43 · 当日低 701.90 · RSI 28.5</div><div class="lv gold"><div class="k">上方阻力</div><div class="val">713.61 / 715.43 / 725.20</div></div><div class="lv blue"><div class="k">关键防守</div><div class="val">701.90；700.00</div></div><div class="sc"><div class="row b"><div class="lb"><span class="ar">↑</span>Bull</div><div class="tx">站回 713.61 并站稳，再看 715.43 ~ 725.20</div></div><div class="row r"><div class="lb"><span class="ar">↓</span>Bear</div><div class="tx">跌破 701.90，警惕延续下跌，下一看 700.00</div></div><div class="row c"><div class="lb"><span class="ar">⇄</span>Chop</div><div class="tx">701.90 – 713.61 反复拉锯，等待确认</div></div></div></div><div class="panel"><div class="tk">SPY</div><div class="px dn">763.96<span style="font-size:14px"> -1.18%</span></div><div class="hl">10/22 收盘 · 当日高 767.71 · 当日低 761.16 · RSI 45.1</div><div class="lv gold"><div class="k">上方阻力</div><div class="val">766.37 / 767.71 / 773.09</div></div><div class="lv blue"><div class="k">关键防守</div><div class="val">761.16；760.00</div></div><div class="sc"><div class="row b"><div class="lb"><span class="ar">↑</span>Bull</div><div class="tx">站回 766.37 并站稳，再看 767.71 ~ 773.09</div></div><div class="row r"><div class="lb"><span class="ar">↓</span>Bear</div><div class="tx">跌破 761.16，警惕延续下跌，下一看 760.00</div></div><div class="row c"><div class="lb"><span class="ar">⇄</span>Chop</div><div class="tx">761.16 – 766.37 反复拉锯，等待确认</div></div></div></div></div>
+</div>
+
+<div class="sec"><div class="st"><div class="no">04</div><div class="tt">今日三项观察</div><div class="en">TODAY'S FOCUS</div></div>
+  <div class="obs"><div class="n">1</div><div><div class="t">半导体一天跌 6.79%，钱没走，换到消费医药去了</div><div class="d">若周五 SOXX 收盘站回 5 日线 496.28 上方、纳指100 收回 29,500，按超卖反弹处理；若继续下跌且成交额高于周四，则确认为趋势。</div></div></div><div class="obs"><div class="n">2</div><div><div class="t">反弹能否收复阻力</div><div class="d">QQQ 713.61 / SPY 766.37。站回开盘分界之前，反弹按修复处理，不追首轮拉升。</div></div></div><div class="obs"><div class="n">3</div><div><div class="t">今日数据窗口</div><div class="d">周五只有 10 月 PMI 初值和密歇根通胀预期，真正的关口是下周三周四的 FOMC。 同时关注油价与美债收益率。</div></div></div>
+</div>
+
+<div class="sec"><div class="st"><div class="no">05</div><div class="tt">操作纪律</div><div class="en">TRADE DISCIPLINE</div></div>
+  <div class="disc">
+    <div class="p1">不盲目抄底，不追首轮拉升。回踩确认后再参与；跌破昨日低点时防守优先。</div>
+    <div class="nt">No-Trade 区间：QQQ 701 – 713 / SPY 761 – 766</div>
+  </div>
+</div>
+
+<div class="banner"><div class="big">今天先看止跌质量，再决定是否参与反弹。</div><div class="side">控制风险<br>坚守纪律<br>走得更远</div></div>
+<div class="foot-note">交易现象与情景预案，非投资建议。</div>
+<div class="gen">生成于 2026-10-23 22:01 CST ｜ 数据源：腾讯/新浪/东方财富行情 + 本台 07:30 内容台账</div>
+</div></body></html>
