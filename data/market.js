@@ -1,6 +1,6 @@
 // 自动生成，请勿手改。运行 `python3 refresh.py` 重新抓取。
 window.MARKET_DATA = {
- "asOf": "2026-11-08 07:31:23",
+ "asOf": "2026-11-08 20:30:56",
  "indices": [
   {
    "key": "usNDX",
@@ -223,11 +223,11 @@ window.MARKET_DATA = {
    "key": "hf_OIL",
    "name": "布伦特原油",
    "unit": "美元/桶",
-   "value": 97.97,
-   "pct": -0.33,
+   "value": 97.85,
+   "pct": -0.44,
    "high": 100.83,
    "low": 96.67,
-   "time": "07:00:00",
+   "time": "06:59:52",
    "date": "2026-11-07"
   },
   {
@@ -267,11 +267,11 @@ window.MARKET_DATA = {
    "key": "hf_CAD",
    "name": "LME铜",
    "unit": "美元/吨",
-   "value": 13755.5,
-   "pct": -0.13,
+   "value": 13762.43,
+   "pct": -0.04,
    "high": 13832.5,
    "low": 13636.0,
-   "time": "03:19:05",
+   "time": "02:59:54",
    "date": "2026-11-07"
   },
   {
@@ -290,18 +290,18 @@ window.MARKET_DATA = {
   {
    "key": "btc_btcbtcusd",
    "name": "比特币 BTC",
-   "value": 75844.0,
-   "high": 76249.99,
-   "low": 75571.08,
+   "value": 75867.59,
+   "high": 76037.07,
+   "low": 75655.76,
    "date": "2026-11-08",
    "note": "数据源未提供 24h 基准价，故不计算涨跌幅"
   },
   {
    "key": "btc_btcethusd",
    "name": "以太坊 ETH",
-   "value": 2238.67,
-   "high": 2251.54,
-   "low": 2223.15,
+   "value": 2240.24,
+   "high": 2243.37,
+   "low": 2229.56,
    "date": "2026-11-08",
    "note": "数据源未提供 24h 基准价，故不计算涨跌幅"
   }
